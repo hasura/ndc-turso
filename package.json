@@ -1,0 +1,37 @@
+{
+    "name": "ts-connector-turso",
+    "version": "1.0.0",
+    "main": "index.js",
+    "scripts": {
+        "start": "ts-node ./src/index.ts serve --configuration=configuration.json",
+        "start-server": "ts-node ./src/index.ts configuration serve",
+        "test": "jest",
+        "generate-config": "ts-node generate-config",
+        "import-data": "ts-node import-data"
+    },
+    "dependencies": {
+        "@hasura/ndc-sdk-typescript": "^1.1.0",
+        "@json-schema-tools/meta-schema": "^1.7.0",
+        "@libsql/client": "^0.3.5",
+        "@types/node": "^20.6.0",
+        "commander": "^11.0.0",
+        "fastify": "^4.23.2",
+        "json-schema-to-ts": "^2.9.2",
+        "json-schema-to-typescript": "^13.1.1",
+        "ts-node": "^10.9.1",
+        "typescript": "^5.2.2"
+    },
+    "devDependencies": {
+        "@tsconfig/node16": "^1.0.3",
+        "@types/jest": "^29.5.5",
+        "@types/node": "^16.18.50",
+        "@types/seedrandom": "^3.0.6",
+        "@types/xml2js": "^0.4.11",
+        "axios": "^1.5.0",
+        "jest": "^29.7.0",
+        "seedrandom": "^3.0.5",
+        "ts-jest": "^29.1.1",
+        "ts-node": "^10.9.1",
+        "typescript": "^4.7.4"
+    }
+}
