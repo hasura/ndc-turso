@@ -11,8 +11,11 @@ export type TableIntrospectResult = {
   foreign_keys: { [k: string]: { table: string; column: string } };
 };
 
+// TODO: Add support for functional types. 
 const determineType = (dataType: string): Type => {
   switch (dataType) {
+    case "DATETIME":
+      return { type: "named", name: "String"};
     case "INTEGER":
       return { type: "named", name: "Int" };
     case "REAL":
@@ -22,6 +25,11 @@ const determineType = (dataType: string): Type => {
     case "BLOB":
       throw new Error("BLOB NOT SUPPORTED!");
     default:
+      if (dataType.startsWith("NVARCHAR")){
+        return { type: "named", name: "String"};
+      } else if (dataType.startsWith("NUMERIC")){
+        return {type: "named", name: "Float"}
+      }
       throw new Error("NOT IMPLEMENTED");
   }
 };
@@ -66,13 +74,15 @@ export const introspectTable = async (
     );
 
     response.field_names.push(column.name);
-    if (column.pk === 1) {
+    if (column.pk as number > 0) {
       response.primary_keys.push(column.name);
     }
     if (column.notnull === 0 && column.pk === 0) {
       response.nullable_keys.push(column.name);
     }
-    response.field_types[column.name] = column.type as string;
+    if (determinedType.type === "named"){
+      response.field_types[column.name] = determinedType.name;
+    }
     response.object_types[column.name] = {
       description: null,
       type: finalType,

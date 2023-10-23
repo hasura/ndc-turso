@@ -13,7 +13,6 @@ import {
   Connector,
   InternalServerError,
 } from "@hasura/ndc-sdk-typescript";
-// import { CAPABILITIES_RESPONSE, CONFIGURATION_SCHEMA } from "./constants";
 import { CAPABILITIES_RESPONSE } from "./constants";
 import { doQuery } from "./handlers/query";
 import { doExplain } from "./handlers/explain";
@@ -177,12 +176,7 @@ const connector: Connector<Configuration, State> = {
         {}
       );
     }
-    console.log("ENTER DO QUERY");
-    let r = doQuery(configuration, request);
-    // r.then((res) => {
-    //   console.log(res);
-    // });
-    return r;
+    return doQuery(configuration, request);
   },
 
   /**

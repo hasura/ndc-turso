@@ -3,31 +3,62 @@ import {
   Expression,
   QueryResponse,
   RowSet,
-  RowFieldValue,
   BadRequest,
-  Conflict,
   NotSupported,
   InternalServerError,
-  OrderBy,
+  Query
 } from "@hasura/ndc-sdk-typescript";
 import { Configuration } from "..";
 import { getTursoClient } from "../turso";
+import { MAX_32_INT } from "../constants";
+import { format } from "sql-formatter";
+const SqlString = require("sqlstring-sqlite");
+const escapeSingle = (s: any) => SqlString.escape(s);
+const escapeDouble = (s: any) => `"${SqlString.escape(s).slice(1, -1)}"`;
+// import {v4 as uuid} from 'uuid'; 
+// We don't need a random suffix, if we treat the node-tree like a path and alias the tables as we go down the path.
+// Pros: It makes things easier to read, and it removes the cost of generating a random suffix
+// Cons: It might make the queries longer for deeply nested queries, if there's a limit on the length of the SQL query, this could be a problem, but it's unlikely except for the most extreme cases.
 
-type VarSet = {
+
+// Do we need to use args at all?
+// That's terrible, I know. BUT.. is it?
+// Our Connector is sitting behind a strictly typed graph.
+// If the connector isn't fully open and unsecured, then we can trust that the graph is only going to send us valid data.
+// Since everything passes through our engine, as long as the connector is secure, we should be able to plop things in. 
+// Although, it's trivial when you use a post-order walk, since you can just push the args onto the stack as you go down the tree.
+
+
+type QueryVariables = {
   [key: string]: any;
 };
 
-type ParameterizedQuery = {
+type SQLiteQuery = {
   sql: string;
   args: any[];
-  aggregates: string[];
 };
 
-function recursiveBuildWhere(
-  expression: Expression,
-  varSet: VarSet | null
-): ParameterizedQuery {
-  let args = [];
+function wrapData(s: string): string {
+  return `
+SELECT
+(
+  ${s}
+) as data
+`;
+}
+
+function wrapRows(s: string): string {
+  return `
+SELECT
+  JSON_OBJECT('rows', JSON_GROUP_ARRAY(JSON(r)))
+FROM
+  (
+    ${s}
+  )
+`;
+}
+
+function buildWhere(expression: Expression, args: any[], variables: QueryVariables): string {
   let sql = "";
   switch (expression.type) {
     case "unary_comparison_operator":
@@ -47,8 +78,8 @@ function recursiveBuildWhere(
           args.push(expression.value.value);
           break;
         case "variable":
-          if (varSet !== null) {
-            args.push(varSet[expression.value.name]);
+          if (variables !== null) {
+            args.push(variables[expression.value.name]);
           }
           break;
         case "column":
@@ -95,9 +126,8 @@ function recursiveBuildWhere(
       } else {
         const clauses = [];
         for (const expr of expression.expressions) {
-          const res = recursiveBuildWhere(expr, varSet);
-          clauses.push(res.sql);
-          args.push(...res.args);
+          const res = buildWhere(expr, args, variables);
+          clauses.push(res);
         }
         sql = `(${clauses.join(` AND `)})`;
       }
@@ -108,17 +138,15 @@ function recursiveBuildWhere(
       } else {
         const clauses = [];
         for (const expr of expression.expressions) {
-          const res = recursiveBuildWhere(expr, varSet);
-          clauses.push(res.sql);
-          args.push(...res.args);
+          const res = buildWhere(expr, args, variables);
+          clauses.push(res);
         }
         sql = `(${clauses.join(` OR `)})`;
       }
       break;
     case "not":
-      const notResult = recursiveBuildWhere(expression.expression, varSet);
-      sql = `NOT (${notResult.sql})`;
-      args = notResult.args;
+      const notResult = buildWhere(expression.expression, args, variables);
+      sql = `NOT (${notResult})`;
       break;
     case "binary_array_comparison_operator":
       // IN
@@ -129,254 +157,213 @@ function recursiveBuildWhere(
     default:
       throw new BadRequest("Unknown Expression Type!", {});
   }
-  return {
-    sql: sql,
-    args: args,
-    aggregates: [],
-  };
+  return sql;
 }
 
-function buildOrderBy(orderBy: OrderBy): string {
-  const orderElements = orderBy.elements.map((element) => {
-    let targetField = "";
-    switch (element.target.type) {
-      case "column":
-        targetField = element.target.name;
-        break;
-      case "single_column_aggregate":
-        throw new NotSupported("Not implemented", {});
-      case "star_count_aggregate":
-        throw new NotSupported("Not implemented", {});
-    }
-    return `${targetField} ${element.order_direction.toUpperCase()}`;
-  });
-  if (orderElements.length === 0) {
-    return ``;
+function buildQuery(
+  config: Configuration,
+  queryRequest: QueryRequest,
+  collection: string,
+  query: Query,
+  path: string[],
+  variables: QueryVariables,
+  args: any[]
+): SQLiteQuery {
+  let sql = "";
+  path.push(collection);
+  let collection_alias = path.join("_");
+  let indent = "    ".repeat(path.length - 1);
+
+  let limit_sql = ``;
+  let offset_sql = ``;
+  let order_by_sql = ``;
+  let collectRows = [];
+  let where_conditions = ["WHERE 1"];
+  if (query.aggregates) {
+    // TODO: Add each aggregate to collectRows
   }
-  return `ORDER BY ${orderElements.join(", ")}`;
-}
-
-/**
- *
- * @param query The queryRequest
- * @param includedFields Which fields to include when building the response
- * @param varSet The variables for this specific query
- */
-export async function collectQuery(
-  query: QueryRequest,
-  includedFields: string[],
-  varSet: VarSet | null
-): Promise<ParameterizedQuery> {
-  let sqlite_statement: string = "";
-  let args = [];
-  let aggregates = [];
-  let joins: string[] = [];
-  let columns: string[] = [];
-
-  includedFields.forEach((field) => {
-    if (query.query.fields !== null && query.query.fields !== undefined) {
-      const rel = query.collection_relationships[field];
-      const f = query.query.fields[field];
-
-      if (f.type === "relationship") {
-        const baseTable = query.collection.slice(0, -1);
-        if (rel.relationship_type === "object") {
-          if (f.query.fields){
-            const joinTable = rel.target_collection.slice(0, -1);
-            const joinClauses = Object.entries(rel.column_mapping).map(
-              ([sourceColumn, targetColumn]) => {
-                return `${baseTable}.${sourceColumn} = ${joinTable}.${targetColumn}`;
-              }
-            );
-            const joinCondition = joinClauses.join(" AND ");
-            Object.keys(f.query.fields).forEach((relField) => {
-              columns.push(
-                `${joinTable}.${relField} AS "${joinTable}.${relField}"`
-              );
-            });
-            const joinClause = `JOIN ${joinTable} ON ${joinCondition}`;
-            joins.push(joinClause);
-          }
-        } else if (rel.relationship_type === "array") {
-          // TODO: Handle these with a CTE?
-          throw new BadRequest("Array Relationships not implemented", {});
-        }
-      } else if (f.type === "column") {
-        columns.push(`${query.collection.slice(0, -1)}.${f.column}`);
-      }
-    }
-  });
-
-  let cte = "";
-  if (query.query.aggregates) {
-    // Create a CTE for aggregate calculations
-    cte = "WITH aggregate_cte AS (SELECT ";
-    let aggregate_statements = [];
-    for (const [key, aggregate] of Object.entries(query.query.aggregates)) {
-      switch (aggregate.type) {
-        case "single_column":
-          switch (aggregate.function) {
-            case "sum":
-              aggregate_statements.push(`SUM(${aggregate.column}) AS ${key}`);
-              aggregates.push(key);
-              break;
-            case "avg":
-              aggregate_statements.push(`AVG(${aggregate.column}) AS ${key}`);
-              aggregates.push(key);
-              break;
-            default:
-              throw new BadRequest(
-                `Unsupported aggregate function: ${aggregate.function}`,
-                {}
-              );
-          }
+  if (query.fields) {
+    for (let [fieldName, fieldValue] of Object.entries(query.fields)) {
+      collectRows.push(escapeSingle(fieldName));
+      switch (fieldValue.type) {
+        case "column":
+          collectRows.push(escapeDouble(fieldValue.column));
           break;
-        case "column_count":
-          if (aggregate.distinct) {
-            aggregate_statements.push(
-              `COUNT(DISTINCT ${aggregate.column}) AS ${key}`
-            );
-            aggregates.push(key);
-          } else {
-            aggregate_statements.push(`COUNT(${aggregate.column}) AS ${key}`);
-            aggregates.push(key);
-          }
-          break;
-        case "star_count":
-          aggregate_statements.push(`COUNT(*) AS ${key}`);
-          aggregates.push(key);
+        case "relationship":
+          collectRows.push(
+            `(${
+              (
+                buildQuery(
+                  config,
+                  queryRequest,
+                  fieldValue.relationship,
+                  fieldValue.query,
+                  path,
+                  variables,
+                  args
+                )
+              ).sql
+            })`
+          );
+          path.pop();
           break;
         default:
-          throw new BadRequest(`Unsupported aggregate type`, {});
+          throw new BadRequest("The types tricked me. 😭", {});
       }
     }
-    cte += aggregate_statements.join(", ");
-    cte += ` FROM ${query.collection.slice(0, -1)}) `;
-    // In the main query, select from the CTE
-    for (const key of Object.keys(query.query.aggregates)) {
-      columns.push(`(SELECT ${key} FROM aggregate_cte) AS ${key}`);
+  }
+  let from_sql = `${escapeDouble(collection)} as ${escapeDouble(
+    collection_alias
+  )}`;
+  if (path.length > 1) {
+    // We don't need the field-mappings since I conveniently had those stored in the config data.
+    // Since we can trust the target_collection to be correct even if the field mappings are off, we can look them up.
+    let relationship = queryRequest.collection_relationships[collection];
+    let parent_alias = path.slice(0, -1).join("_");
+
+    from_sql = `${escapeDouble(
+      relationship.target_collection
+    )} as ${escapeDouble(collection_alias)}`;
+
+    // where_conditions.push(
+    //   ...Object.entries(relationship.column_mapping).map(([from, to]) => {
+    //     return `${escapeDouble(parent_alias)}.${escapeDouble(from)} = ${escapeDouble(collection_alias)}.${escapeDouble(to)}`;
+    //   })
+    // );
+
+    let parent_lookup = path[path.length - 2];
+    let parent: string = parent_lookup;
+    if (queryRequest.collection_relationships[parent_lookup] !== undefined){
+      parent = queryRequest.collection_relationships[parent_lookup].target_collection;
+    }
+
+    if (!config.config){
+      throw new BadRequest("Darn types.", {});
+    }
+
+    let target_keys_lookup = config.config.object_fields[relationship.target_collection];
+    
+    for (let [key, keyData] of Object.entries(target_keys_lookup.foreign_keys)){
+      if (keyData.table === parent){
+        where_conditions.push(`${escapeDouble(parent_alias)}.${escapeDouble(key)} = ${escapeDouble(collection_alias)}.${escapeDouble(keyData.column)}`);
+      }
+    }
+
+  }
+
+  if (query.where){
+    where_conditions.push(`(${buildWhere(query.where, args, variables)})`);
+  }
+
+  if (query.order_by){
+    let order_elems: string[] = [];
+    for (let elem of query.order_by.elements){
+      switch (elem.target.type){
+        case "column":
+          order_elems.push(`${escapeDouble(elem.target.name)} ${elem.order_direction}`);
+          break;
+        case "single_column_aggregate":
+          throw new NotSupported("Single Column Aggregate not supported yet", {});
+        case "star_count_aggregate":
+          throw new NotSupported("Single Column Aggregate not supported yet", {});
+        default:
+          throw new BadRequest("The types lied 😭", {});
+      }
+    }
+    if (order_elems.length > 0){
+      order_by_sql = `ORDER BY ${order_elems.join(" , ")}`;
     }
   }
 
-  sqlite_statement = cte + "SELECT " + columns.join(", ");
-  sqlite_statement += ` FROM ${query.collection.slice(0, -1)}`;
-
-  if (joins.length > 0) {
-    sqlite_statement += ` ${joins.join(" ")}`;
-  }
-  if (query.query.where) {
-    const q = recursiveBuildWhere(query.query.where, varSet);
-    sqlite_statement += ` WHERE ${q.sql}`;
-    args.push(...q.args);
+  if (query.limit) {
+    limit_sql = `LIMIT ${escapeSingle(query.limit)}`;
   }
 
-  if (query.query.order_by) {
-    sqlite_statement += ` ${buildOrderBy(query.query.order_by)}`;
+  if (query.offset) {
+    if (!query.limit){
+      limit_sql = `LIMIT ${MAX_32_INT}`;
+    }
+    offset_sql = `OFFSET ${escapeSingle(query.offset)}`;
+  }
+  
+  sql = wrapRows(`
+SELECT
+JSON_OBJECT(${collectRows.join(",")}) as r
+FROM ${from_sql}
+${where_conditions.join(" AND ")}
+${order_by_sql}
+${limit_sql}
+${offset_sql}
+`);
+
+  if (path.length === 1) {
+    sql = wrapData(sql);
+    // console.log(format(sql, { language: "sqlite" }));
   }
 
-  if (typeof query.query.limit !== "undefined") {
-    sqlite_statement += ` LIMIT ${query.query.limit}`;
-  }
-
-  if (typeof query.query.offset !== "undefined") {
-    sqlite_statement += ` OFFSET ${query.query.offset}`;
-  }
-
-  // Add a semicolon to terminate the SQL statement
-  sqlite_statement += ";";
   return {
-    sql: sqlite_statement,
-    args: args,
-    aggregates: aggregates,
+    sql,
+    args,
   };
 }
 
-async function performQueries(
-  configuration: Configuration,
-  queryPlans: ParameterizedQuery[]
-): Promise<RowSet[]> {
-  const client = getTursoClient(configuration.credentials);
-  const results = await client.batch(queryPlans);
-  let rowSets: RowSet[] = results.map((result, index) => {
-    let aggResults: { [key: string]: any } = {};
-    let queryPlan = queryPlans[index];
-    const rows = result.rows.map((row) => {
-      let singleRowObj: { [k: string]: RowFieldValue | any } = {};
-      result.columns.forEach((column, idx) => {
-        if (column.includes(".[].")) {
-          throw new BadRequest("Not implemented", {});
-        } else if (column.includes(".")) {
-          const parts = column.split(".");
-          if (!singleRowObj[parts[0]]) {
-            singleRowObj[parts[0]] = {};
-          }
-          if (!singleRowObj[parts[0]].rows) {
-            singleRowObj[parts[0]].rows = [{}]; // Initialize with an empty object inside the array
-          }
-          singleRowObj[parts[0]].rows[0][parts[1]] = row[
-            idx
-          ] as unknown as RowFieldValue;
-        } else if (queryPlan.aggregates.includes(column)) {
-          if (!aggResults[column]){
-            aggResults[column] = row[idx];
-          }
-        } else {
-          singleRowObj[column] = row[idx] as unknown as RowFieldValue;
-        }
-      });
-      return singleRowObj;
-    }).filter(obj => Object.keys(obj).length > 0);
-    let rowSet: RowSet = {};
-    if (rows.length > 0) {
-      rowSet.rows = rows;
-    }
-    if (Object.keys(aggResults).length > 0){
-      rowSet.aggregates = aggResults
-    }
-    return rowSet;
-  });
-  return rowSets;
-}
-
-/**
- *
- * @param configuration The configuration objecty
- * @param query The query Request
- */
-export async function planQueries(
+async function planQueries(
   configuration: Configuration,
   query: QueryRequest
-): Promise<ParameterizedQuery[]> {
+): Promise<SQLiteQuery[]> {
   if (!configuration.config) {
     throw new InternalServerError("Connector is not properly configured", {});
   }
-  let queryFields: string[] = [];
-  if (query.query.fields !== null && query.query.fields !== undefined) {
-    queryFields = Object.keys(query.query.fields);
-  }
-  let queryResponse: ParameterizedQuery[];
+
+  let queryPlan: SQLiteQuery[];
   if (query.variables) {
     let promises = query.variables.map((varSet) => {
-      let vSet: VarSet = varSet;
-      return collectQuery(query, queryFields, vSet);
+      let queryVariables: QueryVariables = varSet;
+      return buildQuery(
+        configuration,
+        query,
+        query.collection,
+        query.query,
+        [],
+        queryVariables,
+        []
+      );
     });
-    queryResponse = await Promise.all(promises);
+    queryPlan = await Promise.all(promises);
   } else {
-    let res = await collectQuery(query, queryFields, null);
-    queryResponse = [res];
+    let promise = buildQuery(
+      configuration,
+      query,
+      query.collection,
+      query.query,
+      [],
+      {},
+      []
+    );
+    queryPlan = [promise];
   }
-  return queryResponse;
+  return queryPlan;
+}
+
+async function performQuery(
+  configuration: Configuration,
+  queryPlans: SQLiteQuery[]
+): Promise<QueryResponse> {
+  const client = getTursoClient(configuration.credentials);
+  const results = await client.batch(queryPlans);
+  let res = results.map((r) => {
+    let rowSet = JSON.parse(r.rows[0].data as string) as RowSet;
+    return rowSet;
+  });
+  return res;
 }
 
 export async function doQuery(
   configuration: Configuration,
   query: QueryRequest
 ): Promise<QueryResponse> {
-  console.log(JSON.stringify(query, null, 4));
-  let queryPlans: ParameterizedQuery[] = await planQueries(
-    configuration,
-    query
-  );
-  console.log("Query Plans ", JSON.stringify(queryPlans, null, 4));
-  return await performQueries(configuration, queryPlans);
+  // console.log(JSON.stringify(query, null, 4));
+  // console.log(JSON.stringify(configuration), null, 4);
+  let queryPlans = await planQueries(configuration, query);
+  return await performQuery(configuration, queryPlans);
 }

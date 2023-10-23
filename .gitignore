@@ -1,3 +1,4 @@
 node_modules/
 data
 configuration.json
+chinook.sqlite

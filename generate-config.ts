@@ -6,7 +6,7 @@ import { BASE_FIELDS, BASE_TYPES } from "./src/constants";
 import { Configuration, ObjectFieldDetails } from "./src";
 const writeFile = promisify(fs.writeFile);
 
-const DEFAULT_DATA_FILE = "file:data"; // Adjust this to your default SQLite file path
+const DEFAULT_DATA_FILE = "file:chinook.sqlite"; // Adjust this to your default SQLite file path
 const DEFAULT_OUTPUT_FILENAME = "configuration.json";
 const args = process.argv.slice(2);
 let dataFile = DEFAULT_DATA_FILE;
@@ -35,7 +35,7 @@ async function main() {
     "SELECT name FROM sqlite_master WHERE type='table'"
   );
   const tableNames = tablesResult.rows.map((row) => String(row.name));
-  const tableNamesPlural = tablesResult.rows.map((row) => String(row.name) + 's');
+  const tableNamesPlural = tablesResult.rows.map((row) => String(row.name));
   let objectTypes: Record<string, any> = {
     ...BASE_TYPES,
   };

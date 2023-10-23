@@ -1,11 +1,12 @@
 import { CapabilitiesResponse, ObjectField, ObjectType, ScalarType } from "@hasura/ndc-sdk-typescript";
-
+export const MAX_32_INT: number = 2147483647;
 export const CAPABILITIES_RESPONSE: CapabilitiesResponse = {
   versions: "^0.1.0",
   capabilities: {
     query: {
       foreach: {}
-    }
+    },
+    relationships: {}
   },
 };
 export const SCALAR_TYPES: { [key: string]: ScalarType } = {
