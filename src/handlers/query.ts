@@ -245,7 +245,7 @@ function buildQuery(
     
     for (let [key, keyData] of Object.entries(target_keys_lookup.foreign_keys)){
       if (keyData.table === parent){
-        where_conditions.push(`${escapeDouble(parent_alias)}.${escapeDouble(key)} = ${escapeDouble(collection_alias)}.${escapeDouble(keyData.column)}`);
+        where_conditions.push(`${escapeDouble(parent_alias)}.${escapeDouble(keyData.column)} = ${escapeDouble(collection_alias)}.${escapeDouble(key)}`);
       }
     }
 
