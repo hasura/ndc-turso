@@ -16,11 +16,10 @@ export async function doUpdateConfiguration(
     "SELECT name FROM sqlite_master WHERE type='table'"
   );
   const tableNames = tablesResult.rows.map((row) => String(row.name));
-  const tableNamesPlural = tableNames.map((name) => name + "s");
 
   if (!configuration.config) {
     configuration.config = {
-      collection_names: tableNamesPlural,
+      collection_names: tableNames,
       object_types: { ...BASE_TYPES },
       object_fields: {},
       functions: [],

@@ -11,27 +11,40 @@ export const CAPABILITIES_RESPONSE: CapabilitiesResponse = {
 };
 export const SCALAR_TYPES: { [key: string]: ScalarType } = {
     Int: {
-      aggregate_functions: {},
+      aggregate_functions: {
+        // sum: {
+        //   result_type: {
+        //     type: "named",
+        //     name: "Int"
+        //   }
+        // }
+      },
       comparison_operators: {
-        gt: {
+        _gt: {
           argument_type: {
             type: "named",
             name: "Int",
           },
         },
-        lt: {
+        _lt: {
           argument_type: {
             type: "named",
             name: "Int",
           },
         },
-        gte: {
+        _gte: {
           argument_type: {
             type: "named",
             name: "Int",
           },
         },
-        lte: {
+        _lte: {
+          argument_type: {
+            type: "named",
+            name: "Int",
+          },
+        },
+        _neq: {
           argument_type: {
             type: "named",
             name: "Int",
@@ -41,27 +54,40 @@ export const SCALAR_TYPES: { [key: string]: ScalarType } = {
       update_operators: {},
     },
     Float: {
-      aggregate_functions: {},
+      aggregate_functions: {
+        // sum: {
+        //   result_type: {
+        //     type: "named",
+        //     name: "Float"
+        //   }
+        // }
+      },
       comparison_operators: {
-        gt: {
+        _gt: {
           argument_type: {
             type: "named",
             name: "Float",
           },
         },
-        lt: {
+        _lt: {
           argument_type: {
             type: "named",
             name: "Float",
           },
         },
-        gte: {
+        _gte: {
           argument_type: {
             type: "named",
             name: "Float",
           },
         },
-        lte: {
+        _lte: {
+          argument_type: {
+            type: "named",
+            name: "Float",
+          },
+        },
+        _neq: {
           argument_type: {
             type: "named",
             name: "Float",
@@ -73,7 +99,43 @@ export const SCALAR_TYPES: { [key: string]: ScalarType } = {
     String: {
       aggregate_functions: {},
       comparison_operators: {
-        like: {
+        _like: {
+          argument_type: {
+            type: "named",
+            name: "String",
+          },
+        },
+        _glob: {
+          argument_type: {
+            type: "named",
+            name: "String",
+          },
+        },
+        _gt: {
+          argument_type: {
+            type: "named",
+            name: "String",
+          },
+        },
+        _lt: {
+          argument_type: {
+            type: "named",
+            name: "String",
+          },
+        },
+        _gte: {
+          argument_type: {
+            type: "named",
+            name: "String",
+          },
+        },
+        _lte: {
+          argument_type: {
+            type: "named",
+            name: "String",
+          },
+        },
+        _neq: {
           argument_type: {
             type: "named",
             name: "String",

@@ -35,7 +35,6 @@ async function main() {
     "SELECT name FROM sqlite_master WHERE type='table'"
   );
   const tableNames = tablesResult.rows.map((row) => String(row.name));
-  const tableNamesPlural = tablesResult.rows.map((row) => String(row.name));
   let objectTypes: Record<string, any> = {
     ...BASE_TYPES,
   };
@@ -66,7 +65,7 @@ async function main() {
         url: dataFile
     },
     config: {
-      collection_names: tableNamesPlural,
+      collection_names: tableNames,
       object_fields: objectFields,
       object_types: objectTypes,
       functions: [],

@@ -11,8 +11,9 @@ import {
 import { Configuration } from "..";
 import { getTursoClient } from "../turso";
 import { MAX_32_INT } from "../constants";
-import { format } from "sql-formatter";
+// How can I conditionally import this as a dev dependency?
 const SqlString = require("sqlstring-sqlite");
+import { format } from "sql-formatter";
 const escapeSingle = (s: any) => SqlString.escape(s);
 const escapeDouble = (s: any) => `"${SqlString.escape(s).slice(1, -1)}"`;
 // import {v4 as uuid} from 'uuid'; 
@@ -20,20 +21,19 @@ const escapeDouble = (s: any) => `"${SqlString.escape(s).slice(1, -1)}"`;
 // Pros: It makes things easier to read, and it removes the cost of generating a random suffix
 // Cons: It might make the queries longer for deeply nested queries, if there's a limit on the length of the SQL query, this could be a problem, but it's unlikely except for the most extreme cases.
 
+// Will the post-order walk always push the args onto the stack in the correct order?
 
-// Do we need to use args at all?
-// That's terrible, I know. BUT.. is it?
-// Our Connector is sitting behind a strictly typed graph.
-// If the connector isn't fully open and unsecured, then we can trust that the graph is only going to send us valid data.
-// Since everything passes through our engine, as long as the connector is secure, we should be able to plop things in. 
-// Although, it's trivial when you use a post-order walk, since you can just push the args onto the stack as you go down the tree.
+// TODO: EXISTS, IN, WHERE RELATIONSHIP
 
+
+// TODO: The spec doesn't specify how to broadcast aggregates, do you make a collection for them? I can implement them here,
+// but then you can't use/test them in the agent.
 
 type QueryVariables = {
   [key: string]: any;
 };
 
-type SQLiteQuery = {
+export type SQLiteQuery = {
   sql: string;
   args: any[];
 };
@@ -93,20 +93,29 @@ function buildWhere(expression: Expression, args: any[], variables: QueryVariabl
           break;
         case "other":
           switch (expression.operator.name) {
-            case "like":
+            case "_like":
+              // TODO: Should this be setup like this? Or is this wrong because the % wildcard matches should be set by user?
+              // I.e. Should we let the user pass through their own % to more closely follow the sqlite spec, and create a new operator..
+              // _contains => That does the LIKE %match%
               args[args.length - 1] = `%${args[args.length - 1]}%`;
               sql = `${expression.column.name} LIKE ?`;
               break;
-            case "gt":
+            case "_glob":
+              sql = `${expression.column.name} GLOB ?`;
+              break;
+            case "_neq":
+              sql = `${expression.column.name} != ?`;
+              break;
+            case "_gt":
               sql = `${expression.column.name} > ?`;
               break;
-            case "lt":
+            case "_lt":
               sql = `${expression.column.name} < ?`;
               break;
-            case "gte":
+            case "_gte":
               sql = `${expression.column.name} >= ?`;
               break;
-            case "lte":
+            case "_lte":
               sql = `${expression.column.name} <= ?`;
               break;
             default:
@@ -172,7 +181,7 @@ function buildQuery(
   let sql = "";
   path.push(collection);
   let collection_alias = path.join("_");
-  let indent = "    ".repeat(path.length - 1);
+  // let indent = "    ".repeat(path.length - 1);
 
   let limit_sql = ``;
   let offset_sql = ``;
@@ -181,6 +190,7 @@ function buildQuery(
   let where_conditions = ["WHERE 1"];
   if (query.aggregates) {
     // TODO: Add each aggregate to collectRows
+    throw new NotSupported("Aggregates not implemented yet!", {});
   }
   if (query.fields) {
     for (let [fieldName, fieldValue] of Object.entries(query.fields)) {
@@ -205,7 +215,7 @@ function buildQuery(
               ).sql
             })`
           );
-          path.pop();
+          path.pop(); // POST-ORDER search stack pop!
           break;
         default:
           throw new BadRequest("The types tricked me. 😭", {});
@@ -298,7 +308,7 @@ ${offset_sql}
 
   if (path.length === 1) {
     sql = wrapData(sql);
-    // console.log(format(sql, { language: "sqlite" }));
+    console.log(format(sql, { language: "sqlite" }));
   }
 
   return {
@@ -307,7 +317,7 @@ ${offset_sql}
   };
 }
 
-async function planQueries(
+export async function planQueries(
   configuration: Configuration,
   query: QueryRequest
 ): Promise<SQLiteQuery[]> {
