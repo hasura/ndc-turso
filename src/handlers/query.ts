@@ -6,7 +6,7 @@ import {
   BadRequest,
   NotSupported,
   InternalServerError,
-  Query
+  Query,
 } from "@hasura/ndc-sdk-typescript";
 import { Configuration } from "..";
 import { getTursoClient } from "../turso";
@@ -14,9 +14,10 @@ import { MAX_32_INT } from "../constants";
 // How can I conditionally import this as a dev dependency?
 const SqlString = require("sqlstring-sqlite");
 import { format } from "sql-formatter";
+import fs from "fs";
 const escapeSingle = (s: any) => SqlString.escape(s);
 const escapeDouble = (s: any) => `"${SqlString.escape(s).slice(1, -1)}"`;
-// import {v4 as uuid} from 'uuid'; 
+// import {v4 as uuid} from 'uuid';
 // We don't need a random suffix, if we treat the node-tree like a path and alias the tables as we go down the path.
 // Pros: It makes things easier to read, and it removes the cost of generating a random suffix
 // Cons: It might make the queries longer for deeply nested queries, if there's a limit on the length of the SQL query, this could be a problem, but it's unlikely except for the most extreme cases.
@@ -24,7 +25,6 @@ const escapeDouble = (s: any) => `"${SqlString.escape(s).slice(1, -1)}"`;
 // Will the post-order walk always push the args onto the stack in the correct order?
 
 // TODO: EXISTS, IN, WHERE RELATIONSHIP
-
 
 // TODO: The spec doesn't specify how to broadcast aggregates, do you make a collection for them? I can implement them here,
 // but then you can't use/test them in the agent.
@@ -58,7 +58,11 @@ FROM
 `;
 }
 
-function buildWhere(expression: Expression, args: any[], variables: QueryVariables): string {
+function buildWhere(
+  expression: Expression,
+  args: any[],
+  variables: QueryVariables
+): string {
   let sql = "";
   switch (expression.type) {
     case "unary_comparison_operator":
@@ -202,16 +206,14 @@ function buildQuery(
         case "relationship":
           collectRows.push(
             `(${
-              (
-                buildQuery(
-                  config,
-                  queryRequest,
-                  fieldValue.relationship,
-                  fieldValue.query,
-                  path,
-                  variables,
-                  args
-                )
+              buildQuery(
+                config,
+                queryRequest,
+                fieldValue.relationship,
+                fieldValue.query,
+                path,
+                variables,
+                args
               ).sql
             })`
           );
@@ -228,6 +230,7 @@ function buildQuery(
   if (path.length > 1) {
     // We don't need the field-mappings since I conveniently had those stored in the config data.
     // Since we can trust the target_collection to be correct even if the field mappings are off, we can look them up.
+    // https://github.com/hasura/v3-engine/issues/168
     let relationship = queryRequest.collection_relationships[collection];
     let parent_alias = path.slice(0, -1).join("_");
 
@@ -241,46 +244,72 @@ function buildQuery(
     //   })
     // );
 
+    
     let parent_lookup = path[path.length - 2];
     let parent: string = parent_lookup;
-    if (queryRequest.collection_relationships[parent_lookup] !== undefined){
+    if (queryRequest.collection_relationships[parent_lookup] !== undefined) {
       parent = queryRequest.collection_relationships[parent_lookup].target_collection;
     }
-
-    if (!config.config){
+    if (!config.config) {
       throw new BadRequest("Darn types.", {});
     }
-
-    let target_keys_lookup = config.config.object_fields[relationship.target_collection];
-    
-    for (let [key, keyData] of Object.entries(target_keys_lookup.foreign_keys)){
-      if (keyData.table === parent){
-        where_conditions.push(`${escapeDouble(parent_alias)}.${escapeDouble(keyData.column)} = ${escapeDouble(collection_alias)}.${escapeDouble(key)}`);
+    if (relationship.relationship_type === "object") {
+      let target_keys_lookup = config.config.object_fields[parent];
+      for (let [key, keyData] of Object.entries(target_keys_lookup.foreign_keys)){
+        if (keyData.table === relationship.target_collection) {
+          where_conditions.push(
+            `${escapeDouble(parent_alias)}.${escapeDouble(
+              key
+            )} = ${escapeDouble(collection_alias)}.${escapeDouble(keyData.column)}`
+          );
+        }
       }
+    } else if (relationship.relationship_type === "array") {
+      let target_keys_lookup = config.config.object_fields[relationship.target_collection];
+      for (let [key, keyData] of Object.entries(
+        target_keys_lookup.foreign_keys
+      )) {
+        if (keyData.table === parent) {
+          where_conditions.push(
+            `${escapeDouble(parent_alias)}.${escapeDouble(
+              keyData.column
+            )} = ${escapeDouble(collection_alias)}.${escapeDouble(key)}`
+          );
+        }
+      }
+    } else {
+      throw new BadRequest("Types lied.", {});
     }
-
   }
 
-  if (query.where){
+  if (query.where) {
     where_conditions.push(`(${buildWhere(query.where, args, variables)})`);
   }
 
-  if (query.order_by){
+  if (query.order_by) {
     let order_elems: string[] = [];
-    for (let elem of query.order_by.elements){
-      switch (elem.target.type){
+    for (let elem of query.order_by.elements) {
+      switch (elem.target.type) {
         case "column":
-          order_elems.push(`${escapeDouble(elem.target.name)} ${elem.order_direction}`);
+          order_elems.push(
+            `${escapeDouble(elem.target.name)} ${elem.order_direction}`
+          );
           break;
         case "single_column_aggregate":
-          throw new NotSupported("Single Column Aggregate not supported yet", {});
+          throw new NotSupported(
+            "Single Column Aggregate not supported yet",
+            {}
+          );
         case "star_count_aggregate":
-          throw new NotSupported("Single Column Aggregate not supported yet", {});
+          throw new NotSupported(
+            "Single Column Aggregate not supported yet",
+            {}
+          );
         default:
           throw new BadRequest("The types lied 😭", {});
       }
     }
-    if (order_elems.length > 0){
+    if (order_elems.length > 0) {
       order_by_sql = `ORDER BY ${order_elems.join(" , ")}`;
     }
   }
@@ -290,12 +319,12 @@ function buildQuery(
   }
 
   if (query.offset) {
-    if (!query.limit){
+    if (!query.limit) {
       limit_sql = `LIMIT ${MAX_32_INT}`;
     }
     offset_sql = `OFFSET ${escapeSingle(query.offset)}`;
   }
-  
+
   sql = wrapRows(`
 SELECT
 JSON_OBJECT(${collectRows.join(",")}) as r
@@ -360,11 +389,19 @@ async function performQuery(
   queryPlans: SQLiteQuery[]
 ): Promise<QueryResponse> {
   const client = getTursoClient(configuration.credentials);
-  const results = await client.batch(queryPlans);
+  const results = await client.batch(queryPlans, "read");
   let res = results.map((r) => {
     let rowSet = JSON.parse(r.rows[0].data as string) as RowSet;
     return rowSet;
   });
+  // Dump results to json file for debugging
+  // fs.writeFile("res.json", JSON.stringify(res), (err) => {
+  //   if (err) {
+  //     console.error("Error writing file:", err);
+  //   } else {
+  //     console.log("File has been written");
+  //   }
+  // });
   return res;
 }
 
@@ -374,6 +411,7 @@ export async function doQuery(
 ): Promise<QueryResponse> {
   // console.log(JSON.stringify(query, null, 4));
   // console.log(JSON.stringify(configuration), null, 4);
+  // console.log(JSON.stringify(query, null, 4));
   let queryPlans = await planQueries(configuration, query);
   return await performQuery(configuration, queryPlans);
 }

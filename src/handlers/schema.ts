@@ -1,4 +1,4 @@
-import { CollectionInfo, SchemaResponse } from "@hasura/ndc-sdk-typescript";
+import { CollectionInfo, ProcedureInfo, SchemaResponse } from "@hasura/ndc-sdk-typescript";
 import { Configuration, ObjectFieldDetails } from "..";
 import { SCALAR_TYPES } from "../constants";
 
@@ -41,10 +41,22 @@ export function doGetSchema(configuration: Configuration): SchemaResponse {
         }
     });
 
+    const procedures: ProcedureInfo[] = [
+        {
+            arguments: {},
+            name: "sync",
+            description: "Sync the Local Database file with the Remote Primary Database",
+            result_type: {
+                type: "named",
+                name: "Int"
+            }
+        }
+    ];
+
     const schemaResponse: SchemaResponse = {
         scalar_types: SCALAR_TYPES,
         functions: config.functions,
-        procedures: config.procedures,
+        procedures: procedures,
         object_types: config.object_types,
         collections: collectionInfos
     };

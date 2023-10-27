@@ -2,3 +2,6 @@ node_modules/
 data
 configuration.json
 chinook.sqlite
+local_configuration.json
+remote_configuration.json
+sync_configuration.json

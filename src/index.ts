@@ -12,9 +12,11 @@ import {
   start,
   Connector,
   InternalServerError,
+  NotSupported,
 } from "@hasura/ndc-sdk-typescript";
 import { CAPABILITIES_RESPONSE } from "./constants";
 import { doQuery } from "./handlers/query";
+import { doMutation } from "./handlers/mutation";
 import { doExplain } from "./handlers/explain";
 import { doGetSchema } from "./handlers/schema";
 import { doUpdateConfiguration } from "./handlers/updateConfiguration";
@@ -190,10 +192,10 @@ const connector: Connector<Configuration, State> = {
    */
   mutation(
     configuration: Configuration,
-    state: State,
+    _: State,
     request: MutationRequest
   ): Promise<MutationResponse> {
-    throw new Error("Mutation endpoint not implemented!");
+    return doMutation(configuration, request);
   },
 
   /**
