@@ -14,7 +14,7 @@ import { MAX_32_INT } from "../constants";
 // How can I conditionally import this as a dev dependency?
 const SqlString = require("sqlstring-sqlite");
 import { format } from "sql-formatter";
-import fs from "fs";
+// import fs from "fs";
 const escapeSingle = (s: any) => SqlString.escape(s);
 const escapeDouble = (s: any) => `"${SqlString.escape(s).slice(1, -1)}"`;
 // import {v4 as uuid} from 'uuid';
@@ -220,7 +220,7 @@ function buildQuery(
           path.pop(); // POST-ORDER search stack pop!
           break;
         default:
-          throw new BadRequest("The types tricked me. 😭", {});
+          throw new InternalServerError("The types tricked me. 😭", {});
       }
     }
   }
@@ -228,7 +228,7 @@ function buildQuery(
     collection_alias
   )}`;
   if (path.length > 1) {
-    // We don't need the field-mappings since I conveniently had those stored in the config data.
+    // We don't need the column_mappings since I conveniently had those stored in the config data.
     // Since we can trust the target_collection to be correct even if the field mappings are off, we can look them up.
     // https://github.com/hasura/v3-engine/issues/168
     let relationship = queryRequest.collection_relationships[collection];
@@ -238,47 +238,48 @@ function buildQuery(
       relationship.target_collection
     )} as ${escapeDouble(collection_alias)}`;
 
+    // This way would be easier if it could be trusted.
+
     // where_conditions.push(
     //   ...Object.entries(relationship.column_mapping).map(([from, to]) => {
     //     return `${escapeDouble(parent_alias)}.${escapeDouble(from)} = ${escapeDouble(collection_alias)}.${escapeDouble(to)}`;
     //   })
     // );
 
-    
+    // Since it can't be trusted we will look this up for now.
+
+    // TODO: Remove this once the bug is fixed.
     let parent_lookup = path[path.length - 2];
     let parent: string = parent_lookup;
     if (queryRequest.collection_relationships[parent_lookup] !== undefined) {
-      parent = queryRequest.collection_relationships[parent_lookup].target_collection;
+      parent =
+        queryRequest.collection_relationships[parent_lookup].target_collection;
     }
+
     if (!config.config) {
-      throw new BadRequest("Darn types.", {});
+      throw new BadRequest("The types are broken. 😭", {});
     }
-    if (relationship.relationship_type === "object") {
-      let target_keys_lookup = config.config.object_fields[parent];
-      for (let [key, keyData] of Object.entries(target_keys_lookup.foreign_keys)){
-        if (keyData.table === relationship.target_collection) {
-          where_conditions.push(
-            `${escapeDouble(parent_alias)}.${escapeDouble(
-              key
-            )} = ${escapeDouble(collection_alias)}.${escapeDouble(keyData.column)}`
-          );
-        }
+
+    let is_object: boolean = relationship.relationship_type === "object";
+    let target_keys_lookup =
+      config.config.object_fields[
+        is_object ? parent : relationship.target_collection
+      ];
+    for (let [key, keyData] of Object.entries(
+      target_keys_lookup.foreign_keys
+    )) {
+      if (
+        (is_object && keyData.table === relationship.target_collection) ||
+        (!is_object && keyData.table === parent)
+      ) {
+        where_conditions.push(
+          `${escapeDouble(parent_alias)}.${escapeDouble(
+            is_object ? key : keyData.column
+          )} = ${escapeDouble(collection_alias)}.${escapeDouble(
+            is_object ? keyData.column : key
+          )}`
+        );
       }
-    } else if (relationship.relationship_type === "array") {
-      let target_keys_lookup = config.config.object_fields[relationship.target_collection];
-      for (let [key, keyData] of Object.entries(
-        target_keys_lookup.foreign_keys
-      )) {
-        if (keyData.table === parent) {
-          where_conditions.push(
-            `${escapeDouble(parent_alias)}.${escapeDouble(
-              keyData.column
-            )} = ${escapeDouble(collection_alias)}.${escapeDouble(key)}`
-          );
-        }
-      }
-    } else {
-      throw new BadRequest("Types lied.", {});
     }
   }
 
@@ -411,7 +412,7 @@ export async function doQuery(
 ): Promise<QueryResponse> {
   // console.log(JSON.stringify(query, null, 4));
   // console.log(JSON.stringify(configuration), null, 4);
-  // console.log(JSON.stringify(query, null, 4));
+  console.log(JSON.stringify(query, null, 4));
   let queryPlans = await planQueries(configuration, query);
   return await performQuery(configuration, queryPlans);
 }
