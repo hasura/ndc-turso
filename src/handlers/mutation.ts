@@ -1,10 +1,8 @@
 import { MutationOperation, MutationOperationResults, MutationRequest, MutationResponse, NotSupported } from "@hasura/ndc-sdk-typescript";
-import { Configuration } from "..";
-import { getTursoClient } from "../turso";
+import { Configuration, State } from "..";
 
 
-export async function doMutation(configuration: Configuration, mutation: MutationRequest): Promise<MutationResponse> {
-    // Should mutations be performed synchronously? 
+export async function do_mutation(configuration: Configuration, state: State, mutation: MutationRequest): Promise<MutationResponse> {
     let procedures: MutationOperation[] = [];
     let operation_results: MutationOperationResults[] = [];
     for (let op of mutation.operations){
@@ -19,7 +17,7 @@ export async function doMutation(configuration: Configuration, mutation: Mutatio
             throw new NotSupported("Not implemented yet.", {});
         }
         if (procedure.name === "sync"){
-            const client = getTursoClient(configuration.credentials);
+            const client = state.client;
             await client.sync();
             operation_results.push({
                 affected_rows: 0,
@@ -35,7 +33,6 @@ export async function doMutation(configuration: Configuration, mutation: Mutatio
             throw new NotSupported("Not implemented yet.", {});
         }
     }
-    console.log(operation_results);
     return {
         operation_results: operation_results
     };

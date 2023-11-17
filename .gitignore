@@ -1,7 +1,9 @@
 node_modules/
 data
-configuration.json
-chinook.sqlite
 local_configuration.json
 remote_configuration.json
 sync_configuration.json
+.DS_Store
+local.db
+local.db-shm
+local.db-wal

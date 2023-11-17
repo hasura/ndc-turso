@@ -1,0 +1,9 @@
+POST http://localhost:9100/
+Content-Type: application/json
+
+{
+    "credentials": {
+        "url": "libsql://database-username.turso.io",
+        "authToken": "token"
+    }
+}

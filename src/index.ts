@@ -1,8 +1,6 @@
 import {
   SchemaResponse,
   ObjectType,
-  FunctionInfo,
-  ProcedureInfo,
   QueryRequest,
   QueryResponse,
   MutationRequest,
@@ -12,47 +10,50 @@ import {
   start,
   Connector,
   InternalServerError,
-  NotSupported,
 } from "@hasura/ndc-sdk-typescript";
-import { CAPABILITIES_RESPONSE } from "./constants";
-import { doQuery } from "./handlers/query";
-import { doMutation } from "./handlers/mutation";
-import { doExplain } from "./handlers/explain";
-import { doGetSchema } from "./handlers/schema";
-import { doUpdateConfiguration } from "./handlers/updateConfiguration";
+import { CAPABILITIES_RESPONSE, CONFIGURATION_SCHEMA, RAW_CONFIGURATION_SCHEMA } from "./constants";
+import { do_query } from "./handlers/query";
+import { do_mutation } from "./handlers/mutation";
+import { do_explain } from "./handlers/explain";
+import { do_get_schema } from "./handlers/schema";
+import { do_update_configuration } from "./handlers/updateConfiguration";
 import { JSONSchemaObject } from "@json-schema-tools/meta-schema";
+import { get_turso_client } from "./turso";
+import { Client } from "@libsql/client/.";
 
-export interface ObjectFieldDetails {
-    field_names: string[];
-    field_types: {[k: string]: string};
-    primary_keys: string[];
-    unique_keys: string[];
-    nullable_keys: string[];
-    foreign_keys: {[k: string]: {table: string, column: string}};
-}
+export type ObjectFieldDetails = {
+  field_names: string[];
+  field_types: { [k: string]: string };
+  primary_keys: string[];
+  unique_keys: string[];
+  nullable_keys: string[];
+  foreign_keys: { [k: string]: { table: string; column: string } };
+};
 
-export interface ConfigurationSchema {
+export type ConfigurationSchema = {
   collection_names: string[];
   object_types: { [k: string]: ObjectType };
   object_fields: { [k: string]: ObjectFieldDetails };
-  functions: FunctionInfo[];
-  procedures: ProcedureInfo[];
-}
+};
 
-export interface CredentialSchema {
+export type CredentialSchema = {
   url: string;
   syncUrl?: string;
   authToken?: string;
-}
+};
 
-export interface Configuration {
+export type Configuration = {
   credentials: CredentialSchema;
   config?: ConfigurationSchema;
-}
+};
 
-export interface State {}
+export type RawConfiguration = Configuration;
 
-const connector: Connector<Configuration, State> = {
+export type State = {
+  client: Client;
+};
+
+const connector: Connector<RawConfiguration, Configuration, State> = {
   /**
    * Initialize the connector's in-memory state.
    *
@@ -64,8 +65,11 @@ const connector: Connector<Configuration, State> = {
    * @param configuration
    * @param metrics
    */
-  try_init_state(_: Configuration, __: unknown): Promise<State> {
-    return Promise.resolve({});
+  try_init_state(config: Configuration, __: unknown): Promise<State> {
+    const client: Client = get_turso_client(config.credentials);
+    return Promise.resolve({
+      client: client
+    });
   },
 
   /**
@@ -83,28 +87,32 @@ const connector: Connector<Configuration, State> = {
    * Return jsonschema for the configuration for this connector
    */
   get_configuration_schema(): JSONSchemaObject {
-    return {};
+    return CONFIGURATION_SCHEMA;
     // return CONFIGURATION_SCHEMA;
   },
 
-  make_empty_configuration(): Configuration {
-    const conf: Configuration = {
+  get_raw_configuration_schema(): JSONSchemaObject {
+    return RAW_CONFIGURATION_SCHEMA;
+  },
+
+  make_empty_configuration(): RawConfiguration {
+    const conf: RawConfiguration = {
       credentials: {
         url: "",
       },
       config: {
         collection_names: [],
         object_fields: {},
-        object_types: {},
-        functions: [],
-        procedures: [],
+        object_types: {}
       },
     };
     return conf;
   },
 
-  update_configuration(configuration: Configuration): Promise<Configuration> {
-    return doUpdateConfiguration(configuration);
+  update_configuration(
+    configuration: RawConfiguration
+  ): Promise<RawConfiguration> {
+    return do_update_configuration(configuration);
   },
 
   /**
@@ -113,7 +121,7 @@ const connector: Connector<Configuration, State> = {
    * @param configuration
    */
   validate_raw_configuration(
-    configuration: Configuration
+    configuration: RawConfiguration
   ): Promise<Configuration> {
     return Promise.resolve(configuration);
   },
@@ -132,7 +140,7 @@ const connector: Connector<Configuration, State> = {
         {}
       );
     }
-    return Promise.resolve(doGetSchema(configuration));
+    return Promise.resolve(do_get_schema(configuration));
   },
 
   /**
@@ -155,7 +163,7 @@ const connector: Connector<Configuration, State> = {
         {}
       );
     }
-    return doExplain(configuration, request);
+    return do_explain(configuration, request);
   },
 
   /**
@@ -169,7 +177,7 @@ const connector: Connector<Configuration, State> = {
    */
   query(
     configuration: Configuration,
-    _: State,
+    state: State,
     request: QueryRequest
   ): Promise<QueryResponse> {
     if (!configuration.config) {
@@ -178,7 +186,7 @@ const connector: Connector<Configuration, State> = {
         {}
       );
     }
-    return doQuery(configuration, request);
+    return do_query(configuration, state, request);
   },
 
   /**
@@ -192,26 +200,10 @@ const connector: Connector<Configuration, State> = {
    */
   mutation(
     configuration: Configuration,
-    _: State,
+    state: State,
     request: MutationRequest
   ): Promise<MutationResponse> {
-    return doMutation(configuration, request);
-  },
-
-  /**
-   * Return any read regions defined in the connector's configuration
-   * @param configuration
-   */
-  get_read_regions(_: Configuration): string[] {
-    return [];
-  },
-
-  /**
-   * Return any write regions defined in the connector's configuration
-   * @param configuration
-   */
-  get_write_regions(_: Configuration): string[] {
-    return [];
+    return do_mutation(configuration, state, request);
   },
 
   /**

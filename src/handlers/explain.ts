@@ -1,17 +1,16 @@
 import { ExplainResponse, QueryRequest } from "@hasura/ndc-sdk-typescript";
 import { Configuration } from "..";
-// import { ParameterizedQuery, planQueries } from "./query";
-import { planQueries, SQLiteQuery } from "./query";
+import { plan_queries, SQLiteQuery } from "./query";
 
-export async function doExplain(configuration: Configuration, query: QueryRequest): Promise<ExplainResponse>{
-    let queryPlans: SQLiteQuery[] = await planQueries(
+export async function do_explain(configuration: Configuration, query: QueryRequest): Promise<ExplainResponse>{
+    let query_plans: SQLiteQuery[] = await plan_queries(
         configuration,
         query
       );
-    let explainResponse: ExplainResponse = {
+    let explain_response: ExplainResponse = {
         details: {
-            queryPlans: JSON.stringify(queryPlans)
+            query_plans: JSON.stringify(query_plans)
         }
     };
-    return explainResponse;
+    return explain_response;
 }
