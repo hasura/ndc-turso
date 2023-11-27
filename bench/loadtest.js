@@ -27,6 +27,23 @@ const query = {
 };
 
 // const query = {
+//   query: `query GetAllArtistsAlbumsAndTracks {
+//     artist(limit: 5) {
+//       ArtistId
+//       Name
+//       Albums(limit: 5, where: {AlbumId: {_gt: 1}}) {
+//         AlbumId
+//         Title
+//         Tracks(limit: 5, order_by: {TrackId: Desc}) {
+//           TrackId
+//           Name
+//         }
+//       }
+//     }
+//   }`
+// };
+
+// const query = {
 //     query: `{
 //         albumByAlbumid(AlbumId: 1) {
 //           AlbumId

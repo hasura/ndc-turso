@@ -25,7 +25,6 @@ export function do_get_schema(configuration: Configuration): SchemaResponse {
                 description: null,
                 arguments: {},
                 type: cn,
-                deletable: false,
                 uniqueness_constraints: {
                     [`${cn.charAt(0).toUpperCase() + cn.slice(1)}ByID`]: {
                         unique_columns: field_details.primary_keys
