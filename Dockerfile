@@ -32,7 +32,7 @@ RUN npm ci --only=production
 # Copy compiled JavaScript from the previous stage
 COPY --from=build-stage /usr/src/app/dist ./dist
 
-EXPOSE 8100
+EXPOSE 8101
 
 # Define the command to run the app using CMD
-CMD ["node", "./dist/src/index.js", "serve", "--configuration=/etc/connector/config.json", "--port", "8100"]
+CMD ["node", "./dist/src/index.js", "serve", "--configuration=/etc/connector/config.json", "--port", "8101"]
