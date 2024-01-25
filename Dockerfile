@@ -35,4 +35,4 @@ COPY --from=build-stage /usr/src/app/dist ./dist
 EXPOSE 8100
 
 # Define the command to run the app using CMD
-CMD ["node", "./dist/src/index.js", "serve", "--configuration=/etc/connector/config.json", "--port=8101"]
+CMD ["node", "./dist/src/index.js", "serve", "--configuration=/etc/connector/config.json", "--port", "8100"]
