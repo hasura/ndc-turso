@@ -32,7 +32,7 @@ let client = get_turso_client({ url: data_file });
 
 async function main() {
   const tables_result = await client.execute(
-    "SELECT name FROM sqlite_master WHERE type='table' AND name <> 'sqlite_sequence' AND name <> 'sqlite_stat1'"
+    "SELECT name FROM sqlite_master WHERE type='table' AND name <> 'sqlite_sequence' AND name <> 'sqlite_stat1'  AND name <> 'libsql_wasm_func_table'"
   );
   const table_names = tables_result.rows.map((row) => String(row.name));
   let object_types: Record<string, any> = {
@@ -43,7 +43,6 @@ async function main() {
   for (const table_name of table_names) {
     const field_dict = await introspect_table(table_name, client);
     object_types[table_name] = {
-      description: null,
       fields: {
         ...field_dict.object_types,
         ...BASE_FIELDS,

@@ -79,42 +79,34 @@ function build_where(
         default:
           throw new BadRequest("Unknown Binary Comparison Value Type", {});
       }
-      switch (expression.operator.type) {
-        case "equal":
+
+      switch (expression.operator) {
+        case "_eq":
           sql = `${expression.column.name} = ?`;
           break;
-        case "other":
-          switch (expression.operator.name) {
-            case "_like":
-              sql = `${expression.column.name} LIKE ?`;
-              break;
-            case "_glob":
-              sql = `${expression.column.name} GLOB ?`;
-              break;
-            case "_neq":
-              sql = `${expression.column.name} != ?`;
-              break;
-            case "_gt":
-              sql = `${expression.column.name} > ?`;
-              break;
-            case "_lt":
-              sql = `${expression.column.name} < ?`;
-              break;
-            case "_gte":
-              sql = `${expression.column.name} >= ?`;
-              break;
-            case "_lte":
-              sql = `${expression.column.name} <= ?`;
-              break;
-            default:
-              throw new NotSupported("Invalid Expression Operator Name", {});
-          }
+        case "_like":
+          sql = `${expression.column.name} LIKE ?`;
+          break;
+        case "_glob":
+          sql = `${expression.column.name} GLOB ?`;
+          break;
+        case "_neq":
+          sql = `${expression.column.name} != ?`;
+          break;
+        case "_gt":
+          sql = `${expression.column.name} > ?`;
+          break;
+        case "_lt":
+          sql = `${expression.column.name} < ?`;
+          break;
+        case "_gte":
+          sql = `${expression.column.name} >= ?`;
+          break;
+        case "_lte":
+          sql = `${expression.column.name} <= ?`;
           break;
         default:
-          throw new BadRequest(
-            "Binary Comparison Custom Operator not implemented",
-            {}
-          );
+          throw new BadRequest("Binary Comparison Custom Operator not implemented", {});
       }
       break;
     case "and":
@@ -145,9 +137,6 @@ function build_where(
       const not_result = build_where(expression.expression, args, variables);
       sql = `NOT (${not_result})`;
       break;
-    case "binary_array_comparison_operator":
-      // IN
-      throw new BadRequest("In not implemented", {});
     case "exists":
       // EXISTS
       throw new BadRequest("Not implemented", {});
@@ -227,9 +216,10 @@ function build_query(
       })
     );
   }
+  
 
-  if (query.where) {
-    where_conditions.push(`(${build_where(query.where, args, variables)})`);
+  if (query.predicate) {
+    where_conditions.push(`(${build_where(query.predicate, args, variables)})`);
   }
 
   if (query.order_by) {
@@ -350,8 +340,6 @@ export async function do_query(
   state: State,
   query: QueryRequest
 ): Promise<QueryResponse> {
-  // console.log(JSON.stringify(configuration), null, 4);
-  // console.log(JSON.stringify(query, null, 4));
   let query_plans = await plan_queries(configuration, query);
   return perform_query(state, query_plans);
 }

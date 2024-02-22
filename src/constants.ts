@@ -2,12 +2,19 @@ import { CapabilitiesResponse, ObjectField, ObjectType, ScalarType } from "@hasu
 import { JSONSchemaObject } from "@json-schema-tools/meta-schema";
 export const MAX_32_INT: number = 2147483647;
 export const CAPABILITIES_RESPONSE: CapabilitiesResponse = {
-  versions: "^0.1.0",
+  version: "^0.1.0",
   capabilities: {
     query: {
       variables: {}
     },
-    relationships: {}
+    mutation: {
+      transactional: {},
+      explain: {}
+    },
+    relationships: {
+      relation_comparisons: {},
+      order_by_aggregate: {}
+    }
   },
 };
 export const SCALAR_TYPES: { [key: string]: ScalarType } = {
@@ -21,31 +28,39 @@ export const SCALAR_TYPES: { [key: string]: ScalarType } = {
         // }
       },
       comparison_operators: {
+        _eq: {
+          type: "equal"
+        },
         _gt: {
+          type: "custom",
           argument_type: {
             type: "named",
             name: "Int",
           },
         },
         _lt: {
+          type: "custom",
           argument_type: {
             type: "named",
             name: "Int",
           },
         },
         _gte: {
+          type: "custom",
           argument_type: {
             type: "named",
             name: "Int",
           },
         },
         _lte: {
+          type: "custom",
           argument_type: {
             type: "named",
             name: "Int",
           },
         },
         _neq: {
+          type: "custom",
           argument_type: {
             type: "named",
             name: "Int",
@@ -63,31 +78,39 @@ export const SCALAR_TYPES: { [key: string]: ScalarType } = {
         // }
       },
       comparison_operators: {
+        _eq: {
+          type: "equal"
+        },
         _gt: {
+          type: "custom",
           argument_type: {
             type: "named",
             name: "Float",
           },
         },
         _lt: {
+          type: "custom",
           argument_type: {
             type: "named",
             name: "Float",
           },
         },
         _gte: {
+          type: "custom",
           argument_type: {
             type: "named",
             name: "Float",
           },
         },
         _lte: {
+          type: "custom",
           argument_type: {
             type: "named",
             name: "Float",
           },
         },
         _neq: {
+          type: "custom",
           argument_type: {
             type: "named",
             name: "Float",
@@ -98,43 +121,53 @@ export const SCALAR_TYPES: { [key: string]: ScalarType } = {
     String: {
       aggregate_functions: {},
       comparison_operators: {
+        _eq: {
+          type: "equal"
+        },
         _like: {
+          type: "custom",
           argument_type: {
             type: "named",
             name: "String",
           },
         },
         _glob: {
+          type: "custom",
           argument_type: {
             type: "named",
             name: "String",
           },
         },
         _gt: {
+          type: "custom",
           argument_type: {
             type: "named",
             name: "String",
           },
         },
         _lt: {
+          type: "custom",
           argument_type: {
             type: "named",
             name: "String",
           },
         },
         _gte: {
+          type: "custom",
           argument_type: {
             type: "named",
             name: "String",
           },
         },
         _lte: {
+          type: "custom",
           argument_type: {
             type: "named",
             name: "String",
           },
         },
         _neq: {
+          type: "custom",
           argument_type: {
             type: "named",
             name: "String",

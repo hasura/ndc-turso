@@ -16,10 +16,12 @@ import { do_query } from "./handlers/query";
 import { do_mutation } from "./handlers/mutation";
 import { do_explain } from "./handlers/explain";
 import { do_get_schema } from "./handlers/schema";
-import { do_update_configuration } from "./handlers/updateConfiguration";
-import { JSONSchemaObject } from "@json-schema-tools/meta-schema";
 import { get_turso_client } from "./turso";
 import { Client } from "@libsql/client/.";
+import { readFileSync } from "fs"; // Import synchronous file read function
+
+// import { do_update_configuration } from "./handlers/updateConfiguration";
+// import { JSONSchemaObject } from "@json-schema-tools/meta-schema";
 
 export type ObjectFieldDetails = {
   field_names: string[];
@@ -47,13 +49,40 @@ export type Configuration = {
   config?: ConfigurationSchema;
 };
 
-export type RawConfiguration = Configuration;
+// export type RawConfiguration = Configuration;
 
 export type State = {
   client: Client;
 };
 
-const connector: Connector<RawConfiguration, Configuration, State> = {
+const connector: Connector<Configuration, State> = {
+  /**
+   * Validate the configuration files provided by the user, returning a validated 'Configuration',
+   * or throwing an 'Error'. Throwing an error prevents Connector startup.
+   * @param configuration
+   */
+  parseConfiguration(configurationDir: string): Promise<Configuration> {
+    // Is this just supposed to read the configuration from the mounted volume?
+
+    // What happened to server mode? How do users get the configuration file?
+    // The Refresh Data Connector is gone from VSCode Extension, how do I get metadata?
+    // Can I run the metadata build service myself somehow? I just want the metadata I need to start engine? Given a connector?
+    // How will the registry/hub/whatever it is work now?
+
+    try {
+      const fileContent = readFileSync(configurationDir, 'utf8');
+      const configObject: Configuration = JSON.parse(fileContent);
+      return Promise.resolve(configObject);
+    } catch (error) {
+      console.error("Failed to parse configuration:", error);
+      throw new InternalServerError(
+        "Internal Server Error, server configuration is invalid",
+        {}
+      );
+    }
+
+  },
+
   /**
    * Initialize the connector's in-memory state.
    *
@@ -65,10 +94,10 @@ const connector: Connector<RawConfiguration, Configuration, State> = {
    * @param configuration
    * @param metrics
    */
-  try_init_state(config: Configuration, __: unknown): Promise<State> {
+  tryInitState(config: Configuration, __: unknown): Promise<State> {
     const client: Client = get_turso_client(config.credentials);
     return Promise.resolve({
-      client: client
+      client: client,
     });
   },
 
@@ -79,44 +108,44 @@ const connector: Connector<RawConfiguration, Configuration, State> = {
    * from the NDC specification.
    * @param configuration
    */
-  get_capabilities(_: Configuration): CapabilitiesResponse {
+  getCapabilities(_: Configuration): CapabilitiesResponse {
     return CAPABILITIES_RESPONSE;
   },
 
-  get_raw_configuration_schema(): JSONSchemaObject {
-    return RAW_CONFIGURATION_SCHEMA;
-  },
+  // getRawConfigurationSchema(): JSONSchemaObject {
+  //   return RAW_CONFIGURATION_SCHEMA;
+  // },
 
-  make_empty_configuration(): RawConfiguration {
-    const conf: RawConfiguration = {
-      credentials: {
-        url: "",
-      },
-      config: {
-        collection_names: [],
-        object_fields: {},
-        object_types: {}
-      },
-    };
-    return conf;
-  },
+  // makeEmptyConfiguration(): RawConfiguration {
+  //   const conf: RawConfiguration = {
+  //     credentials: {
+  //       url: "",
+  //     },
+  //     config: {
+  //       collection_names: [],
+  //       object_fields: {},
+  //       object_types: {}
+  //     },
+  //   };
+  //   return conf;
+  // },
 
-  update_configuration(
-    configuration: RawConfiguration
-  ): Promise<RawConfiguration> {
-    return do_update_configuration(configuration);
-  },
+  // updateConfiguration(
+  //   configuration: RawConfiguration
+  // ): Promise<RawConfiguration> {
+  //   return do_update_configuration(configuration);
+  // },
 
   /**
    * Validate the raw configuration provided by the user,
    * returning a configuration error or a validated [`Connector::Configuration`].
    * @param configuration
    */
-  validate_raw_configuration(
-    configuration: RawConfiguration
-  ): Promise<Configuration> {
-    return Promise.resolve(configuration);
-  },
+  // validateRawConfiguration(
+  //   configuration: RawConfiguration
+  // ): Promise<Configuration> {
+  //   return Promise.resolve(configuration);
+  // },
 
   /**
    * Get the connector's schema.
@@ -125,7 +154,7 @@ const connector: Connector<RawConfiguration, Configuration, State> = {
    * from the NDC specification.
    * @param configuration
    */
-  async get_schema(configuration: Configuration): Promise<SchemaResponse> {
+  async getSchema(configuration: Configuration): Promise<SchemaResponse> {
     if (!configuration.config) {
       throw new InternalServerError(
         "Internal Server Error, server configuration is invalid",
@@ -144,7 +173,7 @@ const connector: Connector<RawConfiguration, Configuration, State> = {
    * @param state
    * @param request
    */
-  explain(
+  queryExplain(
     configuration: Configuration,
     _: State,
     request: QueryRequest
@@ -156,6 +185,26 @@ const connector: Connector<RawConfiguration, Configuration, State> = {
       );
     }
     return do_explain(configuration, request);
+  },
+
+  /**
+   * Explain a mutation by creating an execution plan
+   * @param configuration
+   * @param state
+   * @param request
+   */
+  mutationExplain(
+    configuration: Configuration,
+    _: State,
+    request: MutationRequest
+  ): Promise<ExplainResponse> {
+    if (!configuration.config) {
+      throw new InternalServerError(
+        "Internal Server Error, server configuration is invalid",
+        {}
+      );
+    }
+    throw new InternalServerError("Not implemented", {});
   },
 
   /**
@@ -206,7 +255,7 @@ const connector: Connector<RawConfiguration, Configuration, State> = {
    * @param configuration
    * @param state
    */
-  health_check(_: Configuration, __: State): Promise<undefined> {
+  healthCheck(_: Configuration, __: State): Promise<undefined> {
     // TODO
     // https://qdrant.github.io/qdrant/redoc/index.html#tag/service/operation/healthz
     return Promise.resolve(undefined);
@@ -224,7 +273,7 @@ const connector: Connector<RawConfiguration, Configuration, State> = {
    * @param configuration
    * @param state
    */
-  fetch_metrics(_: Configuration, __: State): Promise<undefined> {
+  fetchMetrics(_: Configuration, __: State): Promise<undefined> {
     // TODO: Metrics
     // https://qdrant.github.io/qdrant/redoc/index.html#tag/service/operation/metrics
     return Promise.resolve(undefined);

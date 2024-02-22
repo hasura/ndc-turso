@@ -377,24 +377,20 @@
         },
         "object_types": {
             "Album": {
-                "description": null,
                 "fields": {
                     "AlbumId": {
-                        "description": null,
                         "type": {
                             "type": "named",
                             "name": "Int"
                         }
                     },
                     "Title": {
-                        "description": null,
                         "type": {
                             "type": "named",
                             "name": "String"
                         }
                     },
                     "ArtistId": {
-                        "description": null,
                         "type": {
                             "type": "named",
                             "name": "Int"
@@ -403,17 +399,14 @@
                 }
             },
             "Artist": {
-                "description": null,
                 "fields": {
                     "ArtistId": {
-                        "description": null,
                         "type": {
                             "type": "named",
                             "name": "Int"
                         }
                     },
                     "Name": {
-                        "description": null,
                         "type": {
                             "type": "nullable",
                             "underlying_type": {
@@ -425,31 +418,26 @@
                 }
             },
             "Customer": {
-                "description": null,
                 "fields": {
                     "CustomerId": {
-                        "description": null,
                         "type": {
                             "type": "named",
                             "name": "Int"
                         }
                     },
                     "FirstName": {
-                        "description": null,
                         "type": {
                             "type": "named",
                             "name": "String"
                         }
                     },
                     "LastName": {
-                        "description": null,
                         "type": {
                             "type": "named",
                             "name": "String"
                         }
                     },
                     "Company": {
-                        "description": null,
                         "type": {
                             "type": "nullable",
                             "underlying_type": {
@@ -459,7 +447,6 @@
                         }
                     },
                     "Address": {
-                        "description": null,
                         "type": {
                             "type": "nullable",
                             "underlying_type": {
@@ -469,7 +456,6 @@
                         }
                     },
                     "City": {
-                        "description": null,
                         "type": {
                             "type": "nullable",
                             "underlying_type": {
@@ -479,7 +465,6 @@
                         }
                     },
                     "State": {
-                        "description": null,
                         "type": {
                             "type": "nullable",
                             "underlying_type": {
@@ -489,7 +474,6 @@
                         }
                     },
                     "Country": {
-                        "description": null,
                         "type": {
                             "type": "nullable",
                             "underlying_type": {
@@ -499,7 +483,6 @@
                         }
                     },
                     "PostalCode": {
-                        "description": null,
                         "type": {
                             "type": "nullable",
                             "underlying_type": {
@@ -509,7 +492,6 @@
                         }
                     },
                     "Phone": {
-                        "description": null,
                         "type": {
                             "type": "nullable",
                             "underlying_type": {
@@ -519,7 +501,6 @@
                         }
                     },
                     "Fax": {
-                        "description": null,
                         "type": {
                             "type": "nullable",
                             "underlying_type": {
@@ -529,14 +510,12 @@
                         }
                     },
                     "Email": {
-                        "description": null,
                         "type": {
                             "type": "named",
                             "name": "String"
                         }
                     },
                     "SupportRepId": {
-                        "description": null,
                         "type": {
                             "type": "nullable",
                             "underlying_type": {
@@ -548,31 +527,26 @@
                 }
             },
             "Employee": {
-                "description": null,
                 "fields": {
                     "EmployeeId": {
-                        "description": null,
                         "type": {
                             "type": "named",
                             "name": "Int"
                         }
                     },
                     "LastName": {
-                        "description": null,
                         "type": {
                             "type": "named",
                             "name": "String"
                         }
                     },
                     "FirstName": {
-                        "description": null,
                         "type": {
                             "type": "named",
                             "name": "String"
                         }
                     },
                     "Title": {
-                        "description": null,
                         "type": {
                             "type": "nullable",
                             "underlying_type": {
@@ -582,7 +556,6 @@
                         }
                     },
                     "ReportsTo": {
-                        "description": null,
                         "type": {
                             "type": "nullable",
                             "underlying_type": {
@@ -592,7 +565,6 @@
                         }
                     },
                     "BirthDate": {
-                        "description": null,
                         "type": {
                             "type": "nullable",
                             "underlying_type": {
@@ -602,7 +574,6 @@
                         }
                     },
                     "HireDate": {
-                        "description": null,
                         "type": {
                             "type": "nullable",
                             "underlying_type": {
@@ -612,7 +583,6 @@
                         }
                     },
                     "Address": {
-                        "description": null,
                         "type": {
                             "type": "nullable",
                             "underlying_type": {
@@ -622,7 +592,6 @@
                         }
                     },
                     "City": {
-                        "description": null,
                         "type": {
                             "type": "nullable",
                             "underlying_type": {
@@ -632,7 +601,6 @@
                         }
                     },
                     "State": {
-                        "description": null,
                         "type": {
                             "type": "nullable",
                             "underlying_type": {
@@ -642,7 +610,6 @@
                         }
                     },
                     "Country": {
-                        "description": null,
                         "type": {
                             "type": "nullable",
                             "underlying_type": {
@@ -652,7 +619,6 @@
                         }
                     },
                     "PostalCode": {
-                        "description": null,
                         "type": {
                             "type": "nullable",
                             "underlying_type": {
@@ -662,7 +628,6 @@
                         }
                     },
                     "Phone": {
-                        "description": null,
                         "type": {
                             "type": "nullable",
                             "underlying_type": {
@@ -672,7 +637,6 @@
                         }
                     },
                     "Fax": {
-                        "description": null,
                         "type": {
                             "type": "nullable",
                             "underlying_type": {
@@ -682,7 +646,6 @@
                         }
                     },
                     "Email": {
-                        "description": null,
                         "type": {
                             "type": "nullable",
                             "underlying_type": {
@@ -694,17 +657,14 @@
                 }
             },
             "Genre": {
-                "description": null,
                 "fields": {
                     "GenreId": {
-                        "description": null,
                         "type": {
                             "type": "named",
                             "name": "Int"
                         }
                     },
                     "Name": {
-                        "description": null,
                         "type": {
                             "type": "nullable",
                             "underlying_type": {
@@ -716,31 +676,26 @@
                 }
             },
             "Invoice": {
-                "description": null,
                 "fields": {
                     "InvoiceId": {
-                        "description": null,
                         "type": {
                             "type": "named",
                             "name": "Int"
                         }
                     },
                     "CustomerId": {
-                        "description": null,
                         "type": {
                             "type": "named",
                             "name": "Int"
                         }
                     },
                     "InvoiceDate": {
-                        "description": null,
                         "type": {
                             "type": "named",
                             "name": "String"
                         }
                     },
                     "BillingAddress": {
-                        "description": null,
                         "type": {
                             "type": "nullable",
                             "underlying_type": {
@@ -750,7 +705,6 @@
                         }
                     },
                     "BillingCity": {
-                        "description": null,
                         "type": {
                             "type": "nullable",
                             "underlying_type": {
@@ -760,7 +714,6 @@
                         }
                     },
                     "BillingState": {
-                        "description": null,
                         "type": {
                             "type": "nullable",
                             "underlying_type": {
@@ -770,7 +723,6 @@
                         }
                     },
                     "BillingCountry": {
-                        "description": null,
                         "type": {
                             "type": "nullable",
                             "underlying_type": {
@@ -780,7 +732,6 @@
                         }
                     },
                     "BillingPostalCode": {
-                        "description": null,
                         "type": {
                             "type": "nullable",
                             "underlying_type": {
@@ -790,7 +741,6 @@
                         }
                     },
                     "Total": {
-                        "description": null,
                         "type": {
                             "type": "named",
                             "name": "Float"
@@ -799,38 +749,32 @@
                 }
             },
             "InvoiceLine": {
-                "description": null,
                 "fields": {
                     "InvoiceLineId": {
-                        "description": null,
                         "type": {
                             "type": "named",
                             "name": "Int"
                         }
                     },
                     "InvoiceId": {
-                        "description": null,
                         "type": {
                             "type": "named",
                             "name": "Int"
                         }
                     },
                     "TrackId": {
-                        "description": null,
                         "type": {
                             "type": "named",
                             "name": "Int"
                         }
                     },
                     "UnitPrice": {
-                        "description": null,
                         "type": {
                             "type": "named",
                             "name": "Float"
                         }
                     },
                     "Quantity": {
-                        "description": null,
                         "type": {
                             "type": "named",
                             "name": "Int"
@@ -839,17 +783,14 @@
                 }
             },
             "MediaType": {
-                "description": null,
                 "fields": {
                     "MediaTypeId": {
-                        "description": null,
                         "type": {
                             "type": "named",
                             "name": "Int"
                         }
                     },
                     "Name": {
-                        "description": null,
                         "type": {
                             "type": "nullable",
                             "underlying_type": {
@@ -861,17 +802,14 @@
                 }
             },
             "Playlist": {
-                "description": null,
                 "fields": {
                     "PlaylistId": {
-                        "description": null,
                         "type": {
                             "type": "named",
                             "name": "Int"
                         }
                     },
                     "Name": {
-                        "description": null,
                         "type": {
                             "type": "nullable",
                             "underlying_type": {
@@ -883,17 +821,14 @@
                 }
             },
             "PlaylistTrack": {
-                "description": null,
                 "fields": {
                     "PlaylistId": {
-                        "description": null,
                         "type": {
                             "type": "named",
                             "name": "Int"
                         }
                     },
                     "TrackId": {
-                        "description": null,
                         "type": {
                             "type": "named",
                             "name": "Int"
@@ -902,24 +837,20 @@
                 }
             },
             "Track": {
-                "description": null,
                 "fields": {
                     "TrackId": {
-                        "description": null,
                         "type": {
                             "type": "named",
                             "name": "Int"
                         }
                     },
                     "Name": {
-                        "description": null,
                         "type": {
                             "type": "named",
                             "name": "String"
                         }
                     },
                     "AlbumId": {
-                        "description": null,
                         "type": {
                             "type": "nullable",
                             "underlying_type": {
@@ -929,14 +860,12 @@
                         }
                     },
                     "MediaTypeId": {
-                        "description": null,
                         "type": {
                             "type": "named",
                             "name": "Int"
                         }
                     },
                     "GenreId": {
-                        "description": null,
                         "type": {
                             "type": "nullable",
                             "underlying_type": {
@@ -946,7 +875,6 @@
                         }
                     },
                     "Composer": {
-                        "description": null,
                         "type": {
                             "type": "nullable",
                             "underlying_type": {
@@ -956,14 +884,12 @@
                         }
                     },
                     "Milliseconds": {
-                        "description": null,
                         "type": {
                             "type": "named",
                             "name": "Int"
                         }
                     },
                     "Bytes": {
-                        "description": null,
                         "type": {
                             "type": "nullable",
                             "underlying_type": {
@@ -973,7 +899,6 @@
                         }
                     },
                     "UnitPrice": {
-                        "description": null,
                         "type": {
                             "type": "named",
                             "name": "Float"

@@ -91,7 +91,6 @@ export const introspect_table = async (
         response.field_types[column.name] = determined_type.name;
       }
       response.object_types[column.name] = {
-        description: null,
         type: final_type,
       };
     }
