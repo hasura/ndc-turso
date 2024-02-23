@@ -2,6 +2,12 @@ import { CollectionInfo, FunctionInfo, ObjectField, ObjectType, ProcedureInfo, S
 import { Configuration, ObjectFieldDetails } from "..";
 import { SCALAR_TYPES } from "../constants";
 
+
+function is_numeric_type(type_name: string): boolean {
+    const numeric_types: string[] = ['Int', 'Float', 'Decimal']; // Add more types as per your schema
+    return numeric_types.includes(type_name);
+}
+
 export function do_get_schema(configuration: Configuration): SchemaResponse {
     const { config } = configuration;
     if (!config) {
@@ -81,9 +87,156 @@ export function do_get_schema(configuration: Configuration): SchemaResponse {
                         type: { type: "named", name: `${cn}_InsertType` }
                     }
                 },
-                result_type: { type: "named", name: "Int" }
+                result_type: {type: "array", element_type: {
+                    type: "named",
+                    name: `${cn}_InsertType`
+                }}
             };
             procedures.push(insertOneProcedure);
+
+            if (field_details.primary_keys.length > 0){
+                const pkColumnsType: ObjectType = {
+                    description: `Primary key columns for ${cn}`,
+                    fields: Object.fromEntries(field_details.primary_keys.map(pk => [
+                        pk, { type: { type: "named", name: field_details.field_types[pk] }}
+                    ]))
+                };
+                const setType: ObjectType = {
+                    description: `Fields to set for ${cn}`,
+                    fields: Object.fromEntries(field_details.field_names.map(field_name => [
+                        field_name, {
+                            type: {
+                                type: "nullable",
+                                underlying_type: { type: "named", name: field_details.field_types[field_name] }
+                            }
+                        }
+                    ]))
+                };
+                const incType: ObjectType = {
+                    description: `Numeric fields to increment for ${cn}`,
+                    fields: Object.fromEntries(field_details.field_names.filter(field_name =>
+                        is_numeric_type(field_details.field_types[field_name])).map(field_name => [
+                        field_name, {
+                            type: {
+                                type: "nullable",
+                                underlying_type: { type: "named", name: field_details.field_types[field_name] }
+                            }
+                        }
+                    ]))
+                };
+                // Add these new object types to object_types
+                object_types[`${cn}_PKColumnsType`] = pkColumnsType;
+                object_types[`${cn}_SetType`] = setType;
+                object_types[`${cn}_IncType`] = incType;
+                // Define the update_by_pk procedure using named types
+                const updateByPkProcedure: ProcedureInfo = {
+                    name: `update_${cn}_by_pk`,
+                    description: `Update a single record in the ${cn} collection by primary key.`,
+                    arguments: {
+                        "pk_columns": {
+                            description: `The primary key columns of the record to update in the ${cn}`,
+                            type: { type: "named", name: `${cn}_PKColumnsType` }
+                        },
+                        "_set": {
+                            description: `The fields to set for the ${cn}`,
+                            type: { type: "nullable", underlying_type: { type: "named", name: `${cn}_SetType` }}
+                        },
+                        "_inc": {
+                            description: `The numeric fields to increment for the ${cn}`,
+                            type: { type: "nullable", underlying_type: { type: "named", name: `${cn}_IncType` }}
+                        }
+                    },
+                    result_type: {type: "array", element_type: {
+                        type: "named",
+                        name: `${cn}_InsertType`
+                    }}
+                };
+                procedures.push(updateByPkProcedure);
+                // Define the delete_by_pk procedure
+                const deleteByPkProcedure: ProcedureInfo = {
+                    name: `delete_${cn}_by_pk`,
+                    description: `Delete a single record from the ${cn} collection by primary key.`,
+                    arguments: {
+                        "pk_columns": {
+                            description: `The primary key columns of the record to delete in the ${cn}`,
+                            type: { type: "named", name: `${cn}_PKColumnsType` }
+                        }
+                    },
+                    result_type: {type: "array", element_type: {
+                        type: "named",
+                        name: `${cn}_InsertType`
+                    }}
+                };
+                procedures.push(deleteByPkProcedure);
+
+                const updateManyProcedure: ProcedureInfo = {
+                    name: `update_${cn}_many`,
+                    description: `Update multiple records in the ${cn} collection, with separate arrays for PKs, _set, and _inc.`,
+                    arguments: {
+                        "pk_columns_array": {
+                            description: `An array of primary key structures for the records to update in the ${cn}`,
+                            type: { type: "array", element_type: { type: "named", name: `${cn}_PKColumnsType` }}
+                        },
+                        "_set_array": {
+                            description: `An array of _set objects for updating the ${cn}`,
+                            type: { type: "array", element_type: { type: "named", name: `${cn}_SetType` }}
+                        },
+                        "_inc_array": {
+                            description: `An array of _inc objects for incrementing fields in the ${cn}`,
+                            type: { type: "array", element_type: { type: "named", name: `${cn}_IncType` }}
+                        }
+                    },
+                    result_type: {type: "array", element_type: {
+                        type: "named",
+                        name: `${cn}_InsertType`
+                    }}
+                };
+                procedures.push(updateManyProcedure);
+
+                const deleteManyProcedure: ProcedureInfo = {
+                    name: `delete_${cn}_many`,
+                    description: `Delete multiple records from the ${cn} collection based on primary key conditions.`,
+                    arguments: {
+                        "pk_columns_array": {
+                            description: `An array of primary key structures for the records to delete in the ${cn}. Each item in the array represents a condition that identifies one or more records to be deleted.`,
+                            type: { type: "array", element_type: { type: "named", name: `${cn}_PKColumnsType` }}
+                        }
+                    },
+                    result_type: {
+                        type: "array", 
+                        element_type: {
+                            type: "named",
+                            name: `${cn}_InsertType` // Note: You might want to change this to a more appropriate return type for deletions, such as a count of deleted records or a simple success message.
+                        }
+                    }
+                };
+                procedures.push(deleteManyProcedure);
+
+                const insertManyProcedure: ProcedureInfo = {
+                    name: `insert_${cn}_many`,
+                    description: `Insert multiple records into the ${cn} collection.`,
+                    arguments: {
+                        objects: {
+                            description: `The records to insert into the ${cn}`,
+                            type: { 
+                                type: "array", 
+                                element_type: { 
+                                    type: "named", 
+                                    name: `${cn}_InsertType`
+                                } 
+                            }
+                        }
+                    },
+                    result_type: { 
+                        type: "array", 
+                        element_type: { 
+                            type: "named", 
+                            name: `${cn}_InsertType`
+                        } 
+                    }
+                };
+                procedures.push(insertManyProcedure);
+            }
         }
     });
 

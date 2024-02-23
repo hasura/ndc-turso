@@ -11,7 +11,7 @@ import {
 import { Configuration, State } from "..";
 import { MAX_32_INT } from "../constants";
 const SqlString = require("sqlstring-sqlite");
-// import { format } from "sql-formatter";
+import { format } from "sql-formatter";
 const escape_single = (s: any) => SqlString.escape(s);
 const escape_double = (s: any) => `"${SqlString.escape(s).slice(1, -1)}"`;
 
@@ -51,6 +51,8 @@ function build_where(
   args: any[],
   variables: QueryVariables
 ): string {
+  console.log("BUILDING EXPRESSION");
+  console.log(JSON.stringify(expression, undefined, 4));
   let sql = "";
   switch (expression.type) {
     case "unary_comparison_operator":
@@ -80,30 +82,37 @@ function build_where(
           throw new BadRequest("Unknown Binary Comparison Value Type", {});
       }
 
+      const columnName = expression.column.name;
+
+      if (expression.column.type === "column" && expression.column.path.length > 0){
+        // console.log("WE WILL NEED A JOIN!");
+        throw new Error("Not supported yet.");
+      }
+
       switch (expression.operator) {
         case "_eq":
-          sql = `${expression.column.name} = ?`;
+          sql = `${columnName} = ?`;
           break;
         case "_like":
-          sql = `${expression.column.name} LIKE ?`;
+          sql = `${columnName} LIKE ?`;
           break;
         case "_glob":
-          sql = `${expression.column.name} GLOB ?`;
+          sql = `${columnName} GLOB ?`;
           break;
         case "_neq":
-          sql = `${expression.column.name} != ?`;
+          sql = `${columnName} != ?`;
           break;
         case "_gt":
-          sql = `${expression.column.name} > ?`;
+          sql = `${columnName} > ?`;
           break;
         case "_lt":
-          sql = `${expression.column.name} < ?`;
+          sql = `${columnName} < ?`;
           break;
         case "_gte":
-          sql = `${expression.column.name} >= ?`;
+          sql = `${columnName} >= ?`;
           break;
         case "_lte":
-          sql = `${expression.column.name} <= ?`;
+          sql = `${columnName} <= ?`;
           break;
         default:
           throw new BadRequest("Binary Comparison Custom Operator not implemented", {});
@@ -273,7 +282,8 @@ ${offset_sql}
 
   if (path.length === 1) {
     sql = wrap_data(sql);
-    // console.log(format(sql, { language: "sqlite" }));
+    console.log(format(sql, { language: "sqlite" }));
+    console.log(args);
   }
 
   return {
@@ -340,6 +350,8 @@ export async function do_query(
   state: State,
   query: QueryRequest
 ): Promise<QueryResponse> {
+  console.log("QUERY\n\n");
+  console.log(JSON.stringify(query, undefined, 4));
   let query_plans = await plan_queries(configuration, query);
   return perform_query(state, query_plans);
 }

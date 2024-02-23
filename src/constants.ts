@@ -12,7 +12,6 @@ export const CAPABILITIES_RESPONSE: CapabilitiesResponse = {
       explain: {}
     },
     relationships: {
-      relation_comparisons: {},
       order_by_aggregate: {}
     }
   },
