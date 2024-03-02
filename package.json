@@ -9,9 +9,9 @@
         "generate-config": "ts-node generate-config"
     },
     "dependencies": {
-        "@hasura/ndc-sdk-typescript": "^4.0.0",
+        "@hasura/ndc-sdk-typescript": "^4.2.0",
         "@json-schema-tools/meta-schema": "^1.7.0",
-        "@libsql/client": "^0.3.6",
+        "@libsql/client": "^0.5.2",
         "@types/node": "^20.6.0",
         "sqlstring-sqlite": "^0.1.1",
         "ts-node": "^10.9.1",

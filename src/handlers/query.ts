@@ -49,8 +49,13 @@ FROM
 function build_where(
   expression: Expression,
   args: any[],
-  variables: QueryVariables
+  variables: QueryVariables,
+  filter_joins: string[],
+  config: Configuration
 ): string {
+  if (!config.config){
+    throw new InternalServerError("Internal Server Error", {});
+  }
   console.log("BUILDING EXPRESSION");
   console.log(JSON.stringify(expression, undefined, 4));
   let sql = "";
@@ -85,8 +90,20 @@ function build_where(
       const columnName = expression.column.name;
 
       if (expression.column.type === "column" && expression.column.path.length > 0){
-        // console.log("WE WILL NEED A JOIN!");
-        throw new Error("Not supported yet.");
+        for (let path_elem of expression.column.path){
+          const relationship = JSON.parse(path_elem.relationship);
+          const from = relationship[0];
+          const to = relationship[1];
+          const from_details = config.config.object_fields[from.name];
+          for (let [key, value] of Object.entries(from_details.foreign_keys)){
+            if (value.table === to){
+              const join_str = ` JOIN ${escape_double(to)} ON ${escape_double(from.name)}.${escape_double(key)} = ${escape_double(to)}.${escape_double(value.column)} `;
+              filter_joins.push(join_str);
+            }
+          }
+          sql = `${escape_double(to)}.${escape_double(expression.column.name)} = ?`;
+        }
+        break;
       }
 
       switch (expression.operator) {
@@ -124,7 +141,7 @@ function build_where(
       } else {
         const clauses = [];
         for (const expr of expression.expressions) {
-          const res = build_where(expr, args, variables);
+          const res = build_where(expr, args, variables, filter_joins, config);
           clauses.push(res);
         }
         sql = `(${clauses.join(` AND `)})`;
@@ -136,14 +153,14 @@ function build_where(
       } else {
         const clauses = [];
         for (const expr of expression.expressions) {
-          const res = build_where(expr, args, variables);
+          const res = build_where(expr, args, variables, filter_joins, config);
           clauses.push(res);
         }
         sql = `(${clauses.join(` OR `)})`;
       }
       break;
     case "not":
-      const not_result = build_where(expression.expression, args, variables);
+      const not_result = build_where(expression.expression, args, variables, filter_joins, config);
       sql = `NOT (${not_result})`;
       break;
     case "exists":
@@ -184,7 +201,7 @@ function build_query(
       collect_rows.push(escape_single(field_name));
       switch (field_value.type) {
         case "column":
-          collect_rows.push(escape_double(field_value.column));
+          collect_rows.push(`${escape_double(collection)}.${escape_double(field_value.column)}`);
           break;
         case "relationship":
           collect_rows.push(
@@ -225,10 +242,11 @@ function build_query(
       })
     );
   }
-  
+
+  const filter_joins: string[] = [];
 
   if (query.predicate) {
-    where_conditions.push(`(${build_where(query.predicate, args, variables)})`);
+    where_conditions.push(`(${build_where(query.predicate, args, variables, filter_joins, config)})`);
   }
 
   if (query.order_by) {
@@ -274,6 +292,7 @@ function build_query(
 SELECT
 JSON_OBJECT(${collect_rows.join(",")}) as r
 FROM ${from_sql}
+${filter_joins.join("")}
 ${where_conditions.join(" AND ")}
 ${order_by_sql}
 ${limit_sql}
