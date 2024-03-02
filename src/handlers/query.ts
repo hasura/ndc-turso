@@ -51,7 +51,8 @@ function build_where(
   args: any[],
   variables: QueryVariables,
   filter_joins: string[],
-  config: Configuration
+  config: Configuration,
+  prefix: string
 ): string {
   if (!config.config){
     throw new InternalServerError("Internal Server Error", {});
@@ -88,7 +89,6 @@ function build_where(
       }
 
       const columnName = expression.column.name;
-
       if (expression.column.type === "column" && expression.column.path.length > 0){
         for (let path_elem of expression.column.path){
           const relationship = JSON.parse(path_elem.relationship);
@@ -108,28 +108,28 @@ function build_where(
 
       switch (expression.operator) {
         case "_eq":
-          sql = `${columnName} = ?`;
+          sql = `${prefix}.${escape_double(columnName)} = ?`;
           break;
         case "_like":
-          sql = `${columnName} LIKE ?`;
+          sql = `${prefix}.${escape_double(columnName)} LIKE ?`;
           break;
         case "_glob":
-          sql = `${columnName} GLOB ?`;
+          sql = `${prefix}.${escape_double(columnName)} GLOB ?`;
           break;
         case "_neq":
-          sql = `${columnName} != ?`;
+          sql = `${prefix}.${escape_double(columnName)} != ?`;
           break;
         case "_gt":
-          sql = `${columnName} > ?`;
+          sql = `${prefix}.${escape_double(columnName)} > ?`;
           break;
         case "_lt":
-          sql = `${columnName} < ?`;
+          sql = `${prefix}.${escape_double(columnName)} < ?`;
           break;
         case "_gte":
-          sql = `${columnName} >= ?`;
+          sql = `${prefix}.${escape_double(columnName)} >= ?`;
           break;
         case "_lte":
-          sql = `${columnName} <= ?`;
+          sql = `${prefix}.${escape_double(columnName)} <= ?`;
           break;
         default:
           throw new BadRequest("Binary Comparison Custom Operator not implemented", {});
@@ -141,7 +141,7 @@ function build_where(
       } else {
         const clauses = [];
         for (const expr of expression.expressions) {
-          const res = build_where(expr, args, variables, filter_joins, config);
+          const res = build_where(expr, args, variables, filter_joins, config, prefix);
           clauses.push(res);
         }
         sql = `(${clauses.join(` AND `)})`;
@@ -153,14 +153,14 @@ function build_where(
       } else {
         const clauses = [];
         for (const expr of expression.expressions) {
-          const res = build_where(expr, args, variables, filter_joins, config);
+          const res = build_where(expr, args, variables, filter_joins, config, prefix);
           clauses.push(res);
         }
         sql = `(${clauses.join(` OR `)})`;
       }
       break;
     case "not":
-      const not_result = build_where(expression.expression, args, variables, filter_joins, config);
+      const not_result = build_where(expression.expression, args, variables, filter_joins, config, prefix);
       sql = `NOT (${not_result})`;
       break;
     case "exists":
@@ -246,7 +246,7 @@ function build_query(
   const filter_joins: string[] = [];
 
   if (query.predicate) {
-    where_conditions.push(`(${build_where(query.predicate, args, variables, filter_joins, config)})`);
+    where_conditions.push(`(${build_where(query.predicate, args, variables, filter_joins, config, escape_double(collection))})`);
   }
 
   if (query.order_by) {
