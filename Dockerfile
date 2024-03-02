@@ -1,5 +1,5 @@
 # Use Node.js 18 as the base image
-FROM node:18 AS build-stage
+FROM node:20 AS build-stage
 
 # Set the working directory inside the container
 WORKDIR /usr/src/app
@@ -19,7 +19,7 @@ COPY . .
 RUN tsc
 
 # Start a new stage for the production environment
-FROM node:18 AS production
+FROM node:20 AS production
 
 WORKDIR /usr/src/app
 
@@ -32,7 +32,7 @@ RUN npm ci --only=production
 # Copy compiled JavaScript from the previous stage
 COPY --from=build-stage /usr/src/app/dist ./dist
 
-EXPOSE 8101
+EXPOSE 8080
 
 # Define the command to run the app using CMD
-CMD ["node", "./dist/src/index.js", "serve", "--configuration=/etc/connector/config.json", "--port", "8101"]
+CMD ["node", "./dist/src/index.js", "serve", "--configuration=/etc/connector/config.json", "--port", "8080"]

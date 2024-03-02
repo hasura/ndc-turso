@@ -7,3 +7,4 @@ sync_configuration.json
 local.db
 local.db-shm
 local.db-wal
+dist/

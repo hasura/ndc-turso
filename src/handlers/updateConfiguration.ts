@@ -1,11 +1,11 @@
-import { RawConfiguration, ObjectFieldDetails } from ".."; // Adjust the path as needed
+import { Configuration, ObjectFieldDetails } from ".."; // Adjust the path as needed
 import { get_turso_client } from "../turso"; // Assuming you have a turso client module
 import { introspect_table } from "../utilities";
 import { BASE_FIELDS, BASE_TYPES } from "../constants";
 
 export async function do_update_configuration(
-  configuration: RawConfiguration
-): Promise<RawConfiguration> {
+  configuration: Configuration
+): Promise<Configuration> {
   const client = get_turso_client({
     url: configuration.credentials.url,
     syncUrl: configuration.credentials.syncUrl,

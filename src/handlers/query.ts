@@ -57,8 +57,8 @@ function build_where(
   if (!config.config){
     throw new InternalServerError("Internal Server Error", {});
   }
-  console.log("BUILDING EXPRESSION");
-  console.log(JSON.stringify(expression, undefined, 4));
+  // console.log("BUILDING EXPRESSION");
+  // console.log(JSON.stringify(expression, undefined, 4));
   let sql = "";
   switch (expression.type) {
     case "unary_comparison_operator":
@@ -105,6 +105,10 @@ function build_where(
         }
         break;
       }
+
+      console.log("HANDLING EXP");
+      console.log(expression);
+      console.log(prefix);
 
       switch (expression.operator) {
         case "_eq":
@@ -201,7 +205,7 @@ function build_query(
       collect_rows.push(escape_single(field_name));
       switch (field_value.type) {
         case "column":
-          collect_rows.push(`${escape_double(collection)}.${escape_double(field_value.column)}`);
+          collect_rows.push(`${escape_double(collection_alias)}.${escape_double(field_value.column)}`);
           break;
         case "relationship":
           collect_rows.push(
@@ -246,7 +250,7 @@ function build_query(
   const filter_joins: string[] = [];
 
   if (query.predicate) {
-    where_conditions.push(`(${build_where(query.predicate, args, variables, filter_joins, config, escape_double(collection))})`);
+    where_conditions.push(`(${build_where(query.predicate, args, variables, filter_joins, config, escape_double(collection_alias))})`);
   }
 
   if (query.order_by) {
