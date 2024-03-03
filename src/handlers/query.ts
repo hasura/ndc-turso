@@ -11,7 +11,7 @@ import {
 import { Configuration, State } from "..";
 import { MAX_32_INT } from "../constants";
 const SqlString = require("sqlstring-sqlite");
-import { format } from "sql-formatter";
+// import { format } from "sql-formatter";
 const escape_single = (s: any) => SqlString.escape(s);
 const escape_double = (s: any) => `"${SqlString.escape(s).slice(1, -1)}"`;
 
@@ -106,9 +106,9 @@ function build_where(
         break;
       }
 
-      console.log("HANDLING EXP");
-      console.log(expression);
-      console.log(prefix);
+      // console.log("HANDLING EXP");
+      // console.log(expression);
+      // console.log(prefix);
 
       switch (expression.operator) {
         case "_eq":
@@ -305,8 +305,8 @@ ${offset_sql}
 
   if (path.length === 1) {
     sql = wrap_data(sql);
-    console.log(format(sql, { language: "sqlite" }));
-    console.log(args);
+    // console.log(format(sql, { language: "sqlite" }));
+    // console.log(args);
   }
 
   return {
@@ -373,8 +373,6 @@ export async function do_query(
   state: State,
   query: QueryRequest
 ): Promise<QueryResponse> {
-  console.log("QUERY\n\n");
-  console.log(JSON.stringify(query, undefined, 4));
   let query_plans = await plan_queries(configuration, query);
   return perform_query(state, query_plans);
 }

@@ -1,30 +1,32 @@
 import http from 'k6/http';
 import { check } from 'k6';
 // import {query, expected} from "./artist_album_track.js"
-import { query, expected } from './genre.js';
-
-export let options = {
-    stages: [
-        { duration: '20s', target: 50 },  // Ramp-up to 50 VUs over 20 seconds
-        { duration: '20s', target: 150 }, // Ramp-up to 150 VUs over the next 20 seconds
-        { duration: '20s', target: 300 }, // Ramp-up to 300 VUs over the last 20 seconds
-        // Optional: Add more stages here if you want to include a steady state or ramp-down
-    ],
-};
-
+// import { query, expected } from './genre.js';
+// import {query, expected} from './top_5.js';
+import { query, expected } from './album_by_pk.js';
 
 // export let options = {
-//     scenarios: {
-//         constant_rps: {
-//             executor: 'constant-arrival-rate',
-//             rate: 300,  // Target RPS
-//             timeUnit: '1s',  // 100 iterations per second, adjust as needed
-//             duration: '5m',
-//             preAllocatedVUs: 50,  // Number of VUs to pre-allocate
-//             maxVUs: 100,  // Maximum number of VUs if preAllocatedVUs is not enough
-//         },
-//     },
+//     stages: [
+//         { duration: '20s', target: 50 },  // Ramp-up to 50 VUs over 20 seconds
+//         { duration: '20s', target: 150 }, // Ramp-up to 150 VUs over the next 20 seconds
+//         { duration: '20s', target: 300 }, // Ramp-up to 300 VUs over the last 20 seconds
+//         // Optional: Add more stages here if you want to include a steady state or ramp-down
+//     ],
 // };
+
+
+export let options = {
+    scenarios: {
+        constant_rps: {
+            executor: 'constant-arrival-rate',
+            rate: 5000,  // Target RPS
+            timeUnit: '1s',
+            duration: '5m',
+            preAllocatedVUs: 50,  // Number of VUs to pre-allocate
+            maxVUs: 100,  // Maximum number of VUs if preAllocatedVUs is not enough
+        },
+    },
+};
 
 
 // const query = {
@@ -43,23 +45,6 @@ export let options = {
 //         }
 //       }
 //       `
-// };
-
-// const query = {
-//   query: `query GetAllArtistsAlbumsAndTracks {
-//     artist(limit: 5) {
-//       ArtistId
-//       Name
-//       Albums(limit: 5, where: {AlbumId: {_gt: 1}}) {
-//         AlbumId
-//         Title
-//         Tracks(limit: 5, order_by: {TrackId: Desc}) {
-//           TrackId
-//           Name
-//         }
-//       }
-//     }
-//   }`
 // };
 
 

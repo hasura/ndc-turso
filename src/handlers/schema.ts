@@ -13,7 +13,6 @@ export function do_get_schema(configuration: Configuration): SchemaResponse {
     if (!config) {
         throw new Error('Configuration is missing');
     }
-    console.log(config);
     const procedures: ProcedureInfo[] = [
         {
             arguments: {},

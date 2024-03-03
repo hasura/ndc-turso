@@ -5,6 +5,7 @@
     "author": "Tristen Harr",
     "scripts": {
         "start": "ts-node ./src/index.ts serve --configuration=configuration.json",
+        "start-bun": "bun run ./src/index.ts serve --configuration=configuration.json",
         "start-server": "ts-node ./src/index.ts configuration serve",
         "generate-config": "ts-node generate-config"
     },
