@@ -306,6 +306,7 @@ ${offset_sql}
   if (path.length === 1) {
     sql = wrap_data(sql);
     // console.log(format(sql, { language: "sqlite" }));
+    // console.log(sql);
     // console.log(args);
   }
 
@@ -365,6 +366,8 @@ async function perform_query(
     let row_set = JSON.parse(r.rows[0].data as string) as RowSet;
     return row_set;
   });
+  // console.log("RESPONSE");
+  // console.log(JSON.stringify(res, undefined, 4));
   return res;
 }
 
@@ -373,6 +376,8 @@ export async function do_query(
   state: State,
   query: QueryRequest
 ): Promise<QueryResponse> {
+  // console.log(JSON.stringify(query, undefined, 4));
   let query_plans = await plan_queries(configuration, query);
+  // console.log(query_plans);
   return perform_query(state, query_plans);
 }

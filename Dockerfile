@@ -32,7 +32,11 @@ RUN npm ci --only=production
 # Copy compiled JavaScript from the previous stage
 COPY --from=build-stage /usr/src/app/dist ./dist
 
-EXPOSE 8080
+# Set the default port environment variable
+ENV PORT=8080
+
+# Expose the port specified by the PORT environment variable
+EXPOSE $PORT
 
 # Define the command to run the app using CMD
-CMD ["node", "./dist/src/index.js", "serve", "--configuration=/etc/connector/config.json", "--port", "8080"]
+CMD node ./dist/src/index.js serve --configuration=/etc/connector/config.json --port $PORT
