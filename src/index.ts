@@ -257,7 +257,6 @@ const connector: Connector<Configuration, State> = {
    */
   healthCheck(_: Configuration, __: State): Promise<undefined> {
     // TODO
-    // https://qdrant.github.io/qdrant/redoc/index.html#tag/service/operation/healthz
     return Promise.resolve(undefined);
   },
 
@@ -275,7 +274,6 @@ const connector: Connector<Configuration, State> = {
    */
   fetchMetrics(_: Configuration, __: State): Promise<undefined> {
     // TODO: Metrics
-    // https://qdrant.github.io/qdrant/redoc/index.html#tag/service/operation/metrics
     return Promise.resolve(undefined);
   },
 };

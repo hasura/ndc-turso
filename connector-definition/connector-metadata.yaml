@@ -1,0 +1,23 @@
+packagingDefinition:
+  type: PrebuiltDockerImage
+  dockerImage: "hasura/ndc-turso:1.0.0"
+supportedEnvironmentVariables:
+  - name: HASURA_CONNECTOR_PORT
+    description: The port the connector should run on, defaults to 8080
+  - name: HASURA_CONFIGURATION_DIRECTORY
+    description: The directory to mount as a volume containing the config info
+  - name: HASURA_SERVICE_TOKEN_SECRET
+    description: The services secret
+  - name: HASURA_LOG_LEVEL
+    description: The log level, defaults to "info"
+  - name: HASURA_PRETTY_PRINT_LOGS
+    description: A Boolean on whether or not to pretty print logs, defaults to false
+  - name: OTEL_SERVICE_NAME
+    description: The service name to use for telemetry reporting
+  - name: OTEL_EXPORTER_OTLP_ENDPOINT
+    description: The endpoint to send traces to
+commands: {}
+dockerComposeWatch:
+  - path: ./
+    target: /etc/connector
+    action: sync+restart

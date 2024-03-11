@@ -1,2 +1,3 @@
-GET http://localhost:8080/schema
+GET http://localhost:8081/schema
 Content-Type: application/json
+Authorization: Bearer abc
