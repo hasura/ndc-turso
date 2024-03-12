@@ -6,29 +6,11 @@ import { BASE_FIELDS, BASE_TYPES } from "./src/constants";
 import { Configuration, ObjectFieldDetails } from "./src";
 const writeFile = promisify(fs.writeFile);
 
-const DEFAULT_DATA_FILE = "file:chinook.sqlite"; // Adjust this to your default SQLite file path
-const DEFAULT_OUTPUT_FILENAME = "configuration.json";
-const args = process.argv.slice(2);
-let data_file = DEFAULT_DATA_FILE;
-let output_file_name = DEFAULT_OUTPUT_FILENAME;
-
-for (let i = 0; i < args.length; i++) {
-  switch (args[i]) {
-    case "--data-file":
-      data_file = args[i + 1];
-      i++;
-      break;
-    case "--output":
-      output_file_name = args[i + 1];
-      i++;
-      break;
-    default:
-      console.error(`Unknown argument: ${args[i]}`);
-      process.exit(1);
-  }
-}
-
-let client = get_turso_client({ url: data_file });
+const url = process.env["TURSO_URL"] as string;
+const syncUrl = process.env["TURSO_SYNC_URL"] as string | undefined;
+const authToken = process.env["TURSO_AUTH_TOKEN"] as string | undefined;
+const configDirectory = process.env["HASURA_CONFIGURATION_DIRECTORY"] as string;
+let client = get_turso_client({ url: url,  syncUrl: syncUrl, authToken: authToken});
 
 async function main() {
   const tables_result = await client.execute(
@@ -57,12 +39,7 @@ async function main() {
         foreign_keys: field_dict.foreign_keys,
       };
   }
-
-  console.log(`Writing object_types and tables to ${output_file_name}`);
   const res: Configuration = {
-    credentials: {
-        url: data_file
-    },
     config: {
       collection_names: table_names,
       object_fields: object_fields,
@@ -70,7 +47,7 @@ async function main() {
     },
   };
 
-  await writeFile(output_file_name, JSON.stringify(res));
+  await writeFile(`${configDirectory}/config.json`, JSON.stringify(res));
 }
 
 main();

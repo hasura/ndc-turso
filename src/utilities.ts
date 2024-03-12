@@ -69,8 +69,6 @@ export const introspect_table = async (
         throw new Error("Column name must be string");
       }
 
-      console.log(column);
-
       const determined_type = determine_type(
         (column.type as string).toUpperCase()
       );

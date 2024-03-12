@@ -11,7 +11,7 @@ import {
   Connector,
   InternalServerError,
 } from "@hasura/ndc-sdk-typescript";
-import { CAPABILITIES_RESPONSE, RAW_CONFIGURATION_SCHEMA } from "./constants";
+import { CAPABILITIES_RESPONSE } from "./constants";
 import { do_query } from "./handlers/query";
 import { do_mutation } from "./handlers/mutation";
 import { do_explain } from "./handlers/explain";
@@ -19,6 +19,12 @@ import { do_get_schema } from "./handlers/schema";
 import { get_turso_client } from "./turso";
 import { Client } from "@libsql/client/.";
 import { readFileSync } from "fs"; // Import synchronous file read function
+
+const TURSO_URL = process.env["TURSO_URL"] as string;
+const TURSO_SYNC_URL = process.env["TURSO_SYNC_URL"] as string | undefined;
+const TURSO_AUTH_TOKEN = process.env["TURSO_AUTH_TOKEN"] as string | undefined;
+const HASURA_CONFIGURATION_DIRECTORY = process.env["HASURA_CONFIGURATION_DIRECTORY"] as string;
+
 
 // import { do_update_configuration } from "./handlers/updateConfiguration";
 // import { JSONSchemaObject } from "@json-schema-tools/meta-schema";
@@ -45,7 +51,6 @@ export type CredentialSchema = {
 };
 
 export type Configuration = {
-  credentials: CredentialSchema;
   config?: ConfigurationSchema;
 };
 
@@ -62,13 +67,7 @@ const connector: Connector<Configuration, State> = {
    * @param configuration
    */
   parseConfiguration(configurationDir: string): Promise<Configuration> {
-    // Is this just supposed to read the configuration from the mounted volume?
-
-    // What happened to server mode? How do users get the configuration file?
-    // The Refresh Data Connector is gone from VSCode Extension, how do I get metadata?
-    // Can I run the metadata build service myself somehow? I just want the metadata I need to start engine? Given a connector?
-    // How will the registry/hub/whatever it is work now?
-
+    console.log(configurationDir);
     try {
       const fileContent = readFileSync(configurationDir, 'utf8');
       const configObject: Configuration = JSON.parse(fileContent);
@@ -94,8 +93,9 @@ const connector: Connector<Configuration, State> = {
    * @param configuration
    * @param metrics
    */
-  tryInitState(config: Configuration, __: unknown): Promise<State> {
-    const client: Client = get_turso_client(config.credentials);
+  tryInitState(_: Configuration, __: unknown): Promise<State> {
+    const credentials: CredentialSchema = {url: TURSO_URL, authToken: TURSO_AUTH_TOKEN, syncUrl: TURSO_SYNC_URL};
+    const client: Client = get_turso_client(credentials);
     return Promise.resolve({
       client: client,
     });
@@ -111,41 +111,6 @@ const connector: Connector<Configuration, State> = {
   getCapabilities(_: Configuration): CapabilitiesResponse {
     return CAPABILITIES_RESPONSE;
   },
-
-  // getRawConfigurationSchema(): JSONSchemaObject {
-  //   return RAW_CONFIGURATION_SCHEMA;
-  // },
-
-  // makeEmptyConfiguration(): RawConfiguration {
-  //   const conf: RawConfiguration = {
-  //     credentials: {
-  //       url: "",
-  //     },
-  //     config: {
-  //       collection_names: [],
-  //       object_fields: {},
-  //       object_types: {}
-  //     },
-  //   };
-  //   return conf;
-  // },
-
-  // updateConfiguration(
-  //   configuration: RawConfiguration
-  // ): Promise<RawConfiguration> {
-  //   return do_update_configuration(configuration);
-  // },
-
-  /**
-   * Validate the raw configuration provided by the user,
-   * returning a configuration error or a validated [`Connector::Configuration`].
-   * @param configuration
-   */
-  // validateRawConfiguration(
-  //   configuration: RawConfiguration
-  // ): Promise<Configuration> {
-  //   return Promise.resolve(configuration);
-  // },
 
   /**
    * Get the connector's schema.

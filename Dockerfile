@@ -49,7 +49,3 @@ RUN chmod +x /usr/local/bin/entrypoint.sh
 
 # Use the entrypoint script to handle startup and signal trapping
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
-
-# Define the default command to run the app
-# CMD ["node", "./dist/src/index.js", "serve", "--configuration=${HASURA_CONFIGURATION_DIRECTORY}/config.json", "--port", "$HASURA_CONNECTOR_PORT"]
-

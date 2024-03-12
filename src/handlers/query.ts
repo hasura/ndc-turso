@@ -57,8 +57,6 @@ function build_where(
   if (!config.config){
     throw new InternalServerError("Internal Server Error", {});
   }
-  // console.log("BUILDING EXPRESSION");
-  // console.log(JSON.stringify(expression, undefined, 4));
   let sql = "";
   switch (expression.type) {
     case "unary_comparison_operator":
@@ -366,8 +364,6 @@ async function perform_query(
     let row_set = JSON.parse(r.rows[0].data as string) as RowSet;
     return row_set;
   });
-  // console.log("RESPONSE");
-  // console.log(JSON.stringify(res, undefined, 4));
   return res;
 }
 
@@ -376,8 +372,6 @@ export async function do_query(
   state: State,
   query: QueryRequest
 ): Promise<QueryResponse> {
-  // console.log(JSON.stringify(query, undefined, 4));
   let query_plans = await plan_queries(configuration, query);
-  // console.log(query_plans);
   return perform_query(state, query_plans);
 }
