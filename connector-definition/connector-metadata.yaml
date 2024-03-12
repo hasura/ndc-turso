@@ -9,12 +9,7 @@ supportedEnvironmentVariables:
   - name: TURSO_SYNC_URL
     description: The Sync URL for Turso for replicas
 commands:
-  update: docker run -it --rm \
-  -e TURSO_URL="$TURSO_URL" \
-  -e TURSO_AUTH_TOKEN="$TURSO_AUTH_TOKEN" \
-  -e TURSO_SYNC_URL="$TURSO_SYNC_URL" \
-  -v "$HASURA_PLUGIN_CONNECTOR_CONTEXT_PATH":/etc/connector \
-  ghcr.io/hasura/ndc-turso:0.0.2 update
+  update: docker run -it --rm -e TURSO_URL="$TURSO_URL" -e TURSO_AUTH_TOKEN="$TURSO_AUTH_TOKEN" -e TURSO_SYNC_URL="$TURSO_SYNC_URL" -v "$HASURA_PLUGIN_CONNECTOR_CONTEXT_PATH":/etc/connector ghcr.io/hasura/ndc-turso:0.0.2 update
 dockerComposeWatch:
   - path: ./
     target: /etc/connector
