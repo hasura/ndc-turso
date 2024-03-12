@@ -1,6 +1,6 @@
 packagingDefinition:
   type: PrebuiltDockerImage
-  dockerImage: "hasura/ndc-turso:1.0.0"
+  dockerImage: "hasura/ndc-turso:0.0.1"
 supportedEnvironmentVariables:
   - name: TURSO_URL
     description: The url for the Turso database
@@ -14,7 +14,7 @@ commands:
   -e TURSO_AUTH_TOKEN="$TURSO_AUTH_TOKEN" \
   -e TURSO_SYNC_URL="$TURSO_SYNC_URL" \
   -v "$HASURA_PLUGIN_CONNECTOR_CONTEXT_PATH":/etc/connector \
-  hasura/ndc-turso:1.0.0 update
+  hasura/ndc-turso:0.0.1 update
 dockerComposeWatch:
   - path: ./
     target: /etc/connector
