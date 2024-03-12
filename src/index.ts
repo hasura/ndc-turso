@@ -23,7 +23,6 @@ import { readFileSync } from "fs"; // Import synchronous file read function
 const TURSO_URL = process.env["TURSO_URL"] as string;
 const TURSO_SYNC_URL = process.env["TURSO_SYNC_URL"] as string | undefined;
 const TURSO_AUTH_TOKEN = process.env["TURSO_AUTH_TOKEN"] as string | undefined;
-const HASURA_CONFIGURATION_DIRECTORY = process.env["HASURA_CONFIGURATION_DIRECTORY"] as string;
 
 
 // import { do_update_configuration } from "./handlers/updateConfiguration";
@@ -67,9 +66,9 @@ const connector: Connector<Configuration, State> = {
    * @param configuration
    */
   parseConfiguration(configurationDir: string): Promise<Configuration> {
-    console.log(configurationDir);
     try {
-      const fileContent = readFileSync(configurationDir, 'utf8');
+      const configLocation = `${configurationDir}/config.json`;
+      const fileContent = readFileSync(configLocation, 'utf8');
       const configObject: Configuration = JSON.parse(fileContent);
       return Promise.resolve(configObject);
     } catch (error) {
@@ -79,7 +78,6 @@ const connector: Connector<Configuration, State> = {
         {}
       );
     }
-
   },
 
   /**

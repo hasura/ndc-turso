@@ -9,7 +9,6 @@ const writeFile = promisify(fs.writeFile);
 const url = process.env["TURSO_URL"] as string;
 const syncUrl = process.env["TURSO_SYNC_URL"] as string | undefined;
 const authToken = process.env["TURSO_AUTH_TOKEN"] as string | undefined;
-const configDirectory = process.env["HASURA_CONFIGURATION_DIRECTORY"] as string;
 let client = get_turso_client({ url: url,  syncUrl: syncUrl, authToken: authToken});
 
 async function main() {
@@ -47,7 +46,7 @@ async function main() {
     },
   };
 
-  await writeFile(`${configDirectory}/config.json`, JSON.stringify(res));
+  await writeFile(`/etc/connector/config.json`, JSON.stringify(res));
 }
 
 main();

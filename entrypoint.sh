@@ -10,7 +10,7 @@ graceful_shutdown() {
 # Function to start the application
 start_application() {
     # Start the application in the background and save its PID
-    node ./dist/src/index.js serve --configuration=${HASURA_CONFIGURATION_DIRECTORY}/config.json --port $HASURA_CONNECTOR_PORT &
+    node ./dist/src/index.js serve &
     pid=$!
     # Trap SIGTERM and SIGINT to call the graceful_shutdown function
     trap 'graceful_shutdown' SIGTERM SIGINT
