@@ -5,6 +5,9 @@ This changelog documents changes between release tags.
 ## [Unreleased]
 Upcoming changes for the next versioned release.
 
+## [0.0.8]
+* Update connector-metadata.yaml
+
 ## [0.0.7]
 * Fix the connector-metadata.yaml
 * Add check for if environment variables are a blank string for optional env vars
