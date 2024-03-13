@@ -6,10 +6,16 @@ import { BASE_FIELDS, BASE_TYPES } from "./src/constants";
 import { Configuration, ObjectFieldDetails } from "./src";
 const writeFile = promisify(fs.writeFile);
 
-const url = process.env["TURSO_URL"] as string;
-const syncUrl = process.env["TURSO_SYNC_URL"] as string | undefined;
-const authToken = process.env["TURSO_AUTH_TOKEN"] as string | undefined;
-let client = get_turso_client({ url: url,  syncUrl: syncUrl, authToken: authToken});
+const TURSO_URL = process.env["TURSO_URL"] as string;
+let TURSO_SYNC_URL = process.env["TURSO_SYNC_URL"] as string | undefined;
+if (TURSO_SYNC_URL?.length === 0){
+  TURSO_SYNC_URL = undefined;
+}
+let TURSO_AUTH_TOKEN = process.env["TURSO_AUTH_TOKEN"] as string | undefined;
+if (TURSO_AUTH_TOKEN?.length === 0){
+  TURSO_AUTH_TOKEN = undefined;
+}
+let client = get_turso_client({ url: TURSO_URL,  syncUrl: TURSO_SYNC_URL, authToken: TURSO_AUTH_TOKEN});
 
 async function main() {
   const tables_result = await client.execute(

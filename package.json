@@ -1,14 +1,9 @@
 {
     "name": "ndc-turso",
-    "version": "0.0.6",
+    "version": "0.0.7",
     "main": "index.js",
     "author": "Tristen Harr",
-    "scripts": {
-        "start": "ts-node ./src/index.ts serve --configuration=configuration.json --service-token-secret=abc",
-        "start-bun": "bun run ./src/index.ts serve --configuration=configuration.json",
-        "start-server": "ts-node ./src/index.ts configuration serve",
-        "generate-config": "ts-node generate-config"
-    },
+    "scripts": {},
     "dependencies": {
         "@hasura/ndc-sdk-typescript": "^4.2.1",
         "@json-schema-tools/meta-schema": "^1.7.0",

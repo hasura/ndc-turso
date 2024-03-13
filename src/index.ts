@@ -21,8 +21,14 @@ import { Client } from "@libsql/client/.";
 import { readFileSync } from "fs"; // Import synchronous file read function
 
 const TURSO_URL = process.env["TURSO_URL"] as string;
-const TURSO_SYNC_URL = process.env["TURSO_SYNC_URL"] as string | undefined;
-const TURSO_AUTH_TOKEN = process.env["TURSO_AUTH_TOKEN"] as string | undefined;
+let TURSO_SYNC_URL = process.env["TURSO_SYNC_URL"] as string | undefined;
+if (TURSO_SYNC_URL?.length === 0){
+  TURSO_SYNC_URL = undefined;
+}
+let TURSO_AUTH_TOKEN = process.env["TURSO_AUTH_TOKEN"] as string | undefined;
+if (TURSO_AUTH_TOKEN?.length === 0){
+  TURSO_AUTH_TOKEN = undefined;
+}
 
 
 // import { do_update_configuration } from "./handlers/updateConfiguration";
