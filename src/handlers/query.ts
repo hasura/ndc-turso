@@ -7,6 +7,7 @@ import {
   NotSupported,
   InternalServerError,
   Query,
+  Relationship,
 } from "@hasura/ndc-sdk-typescript";
 import { Configuration, State } from "..";
 import { MAX_32_INT } from "../constants";
@@ -48,6 +49,9 @@ FROM
 
 function build_where(
   expression: Expression,
+  collection_relationships: {
+    [k: string]: Relationship;
+  },
   args: any[],
   variables: QueryVariables,
   filter_joins: string[],
@@ -85,53 +89,93 @@ function build_where(
         default:
           throw new BadRequest("Unknown Binary Comparison Value Type", {});
       }
-
       const columnName = expression.column.name;
-      if (expression.column.type === "column" && expression.column.path.length > 0){
-        for (let path_elem of expression.column.path){
-          const relationship = JSON.parse(path_elem.relationship);
-          const from = relationship[0];
-          const to = relationship[1];
-          const from_details = config.config.object_fields[from.name];
-          for (let [key, value] of Object.entries(from_details.foreign_keys)){
-            if (value.table === to){
-              const join_str = ` JOIN ${escape_double(to)} ON ${escape_double(from.name)}.${escape_double(key)} = ${escape_double(to)}.${escape_double(value.column)} `;
+      
+    if (expression.column.type === "column" && expression.column.path.length > 0) {
+      let currentTable = prefix;
+      let currentAlias = prefix;
+      let aliases: { [key: string]: string } = {};
+
+      for (let path_elem of expression.column.path) {
+        const collection_relationship = collection_relationships[path_elem.relationship];
+        const relationship = JSON.parse(path_elem.relationship);
+        const from = relationship[0];
+        const to = collection_relationship.target_collection;
+        const from_details = config.config.object_fields[from.name];
+
+        let joined = false;
+        for (let [key, value] of Object.entries(from_details.foreign_keys)) {
+          if (value.table === to) {
+            let toAlias;
+            if (aliases[to]) {
+              toAlias = aliases[to];
+            } else {
+              toAlias = `${currentAlias}_${to}`;
+              aliases[to] = toAlias;
+            }
+            const join_str = ` JOIN ${escape_double(to)} AS ${escape_double(toAlias)} ON ${escape_double(currentAlias)}.${escape_double(key)} = ${escape_double(toAlias)}.${escape_double(value.column)} `;
+            if (!filter_joins.includes(join_str)) {
               filter_joins.push(join_str);
             }
+            currentTable = to;
+            currentAlias = toAlias;
+            joined = true;
+            break;
           }
-          sql = `${escape_double(to)}.${escape_double(expression.column.name)} = ?`;
         }
-        break;
+
+        if (!joined) {
+          const to_details = config.config.object_fields[to];
+          for (let [key, value] of Object.entries(to_details.foreign_keys)) {
+            if (value.table === from.name) {
+              let toAlias;
+              if (aliases[to]) {
+                toAlias = aliases[to];
+              } else {
+                toAlias = `${currentAlias}_${to}`;
+                aliases[to] = toAlias;
+              }
+              const join_str = ` JOIN ${escape_double(to)} AS ${escape_double(toAlias)} ON ${escape_double(toAlias)}.${escape_double(key)} = ${escape_double(currentAlias)}.${escape_double(value.column)} `;
+              if (!filter_joins.includes(join_str)) {
+                filter_joins.push(join_str);
+              }
+              currentTable = to;
+              currentAlias = toAlias;
+              joined = true;
+              break;
+            }
+          }
+        }
       }
 
-      // console.log("HANDLING EXP");
-      // console.log(expression);
-      // console.log(prefix);
+      sql = `${escape_double(currentAlias)}.${escape_double(expression.column.name)} = ?`;
+      break;
+    }
 
       switch (expression.operator) {
         case "_eq":
-          sql = `${prefix}.${escape_double(columnName)} = ?`;
+          sql = `${escape_double(prefix)}.${escape_double(columnName)} = ?`;
           break;
         case "_like":
-          sql = `${prefix}.${escape_double(columnName)} LIKE ?`;
+          sql = `${escape_double(prefix)}.${escape_double(columnName)} LIKE ?`;
           break;
         case "_glob":
-          sql = `${prefix}.${escape_double(columnName)} GLOB ?`;
+          sql = `${escape_double(prefix)}.${escape_double(columnName)} GLOB ?`;
           break;
         case "_neq":
-          sql = `${prefix}.${escape_double(columnName)} != ?`;
+          sql = `${escape_double(prefix)}.${escape_double(columnName)} != ?`;
           break;
         case "_gt":
-          sql = `${prefix}.${escape_double(columnName)} > ?`;
+          sql = `${escape_double(prefix)}.${escape_double(columnName)} > ?`;
           break;
         case "_lt":
-          sql = `${prefix}.${escape_double(columnName)} < ?`;
+          sql = `${escape_double(prefix)}.${escape_double(columnName)} < ?`;
           break;
         case "_gte":
-          sql = `${prefix}.${escape_double(columnName)} >= ?`;
+          sql = `${escape_double(prefix)}.${escape_double(columnName)} >= ?`;
           break;
         case "_lte":
-          sql = `${prefix}.${escape_double(columnName)} <= ?`;
+          sql = `${escape_double(prefix)}.${escape_double(columnName)} <= ?`;
           break;
         default:
           throw new BadRequest("Binary Comparison Custom Operator not implemented", {});
@@ -143,7 +187,7 @@ function build_where(
       } else {
         const clauses = [];
         for (const expr of expression.expressions) {
-          const res = build_where(expr, args, variables, filter_joins, config, prefix);
+          const res = build_where(expr, collection_relationships, args, variables, filter_joins, config, prefix);
           clauses.push(res);
         }
         sql = `(${clauses.join(` AND `)})`;
@@ -155,14 +199,14 @@ function build_where(
       } else {
         const clauses = [];
         for (const expr of expression.expressions) {
-          const res = build_where(expr, args, variables, filter_joins, config, prefix);
+          const res = build_where(expr, collection_relationships, args, variables, filter_joins, config, prefix);
           clauses.push(res);
         }
         sql = `(${clauses.join(` OR `)})`;
       }
       break;
     case "not":
-      const not_result = build_where(expression.expression, args, variables, filter_joins, config, prefix);
+      const not_result = build_where(expression.expression, collection_relationships, args, variables, filter_joins, config, prefix);
       sql = `NOT (${not_result})`;
       break;
     case "exists":
@@ -248,7 +292,7 @@ function build_query(
   const filter_joins: string[] = [];
 
   if (query.predicate) {
-    where_conditions.push(`(${build_where(query.predicate, args, variables, filter_joins, config, escape_double(collection_alias))})`);
+    where_conditions.push(`(${build_where(query.predicate, query_request.collection_relationships, args, variables, filter_joins, config, collection_alias)})`);
   }
 
   if (query.order_by) {
@@ -372,6 +416,7 @@ export async function do_query(
   state: State,
   query: QueryRequest
 ): Promise<QueryResponse> {
+  // console.log(query);
   let query_plans = await plan_queries(configuration, query);
   return perform_query(state, query_plans);
 }

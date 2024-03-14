@@ -5,6 +5,9 @@ This changelog documents changes between release tags.
 ## [Unreleased]
 Upcoming changes for the next versioned release.
 
+## [0.0.9]
+* Fix bug in filter joins
+
 ## [0.0.8]
 * Update connector-metadata.yaml
 
