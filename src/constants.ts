@@ -1,5 +1,4 @@
 import { CapabilitiesResponse, ObjectField, ObjectType, ScalarType } from "@hasura/ndc-sdk-typescript";
-import { JSONSchemaObject } from "@json-schema-tools/meta-schema";
 export const MAX_32_INT: number = 2147483647;
 export const CAPABILITIES_RESPONSE: CapabilitiesResponse = {
   version: "^0.1.0",

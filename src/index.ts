@@ -9,7 +9,7 @@ import {
   ExplainResponse,
   start,
   Connector,
-  InternalServerError,
+  Forbidden
 } from "@hasura/ndc-sdk-typescript";
 import { CAPABILITIES_RESPONSE } from "./constants";
 import { do_query } from "./handlers/query";
@@ -79,7 +79,7 @@ const connector: Connector<Configuration, State> = {
       return Promise.resolve(configObject);
     } catch (error) {
       console.error("Failed to parse configuration:", error);
-      throw new InternalServerError(
+      throw new Forbidden(
         "Internal Server Error, server configuration is invalid",
         {}
       );
@@ -125,7 +125,7 @@ const connector: Connector<Configuration, State> = {
    */
   async getSchema(configuration: Configuration): Promise<SchemaResponse> {
     if (!configuration.config) {
-      throw new InternalServerError(
+      throw new Forbidden(
         "Internal Server Error, server configuration is invalid",
         {}
       );
@@ -148,7 +148,7 @@ const connector: Connector<Configuration, State> = {
     request: QueryRequest
   ): Promise<ExplainResponse> {
     if (!configuration.config) {
-      throw new InternalServerError(
+      throw new Forbidden(
         "Internal Server Error, server configuration is invalid",
         {}
       );
@@ -168,12 +168,12 @@ const connector: Connector<Configuration, State> = {
     request: MutationRequest
   ): Promise<ExplainResponse> {
     if (!configuration.config) {
-      throw new InternalServerError(
+      throw new Forbidden(
         "Internal Server Error, server configuration is invalid",
         {}
       );
     }
-    throw new InternalServerError("Not implemented", {});
+    throw new Forbidden("Not implemented", {});
   },
 
   /**
@@ -191,7 +191,7 @@ const connector: Connector<Configuration, State> = {
     request: QueryRequest
   ): Promise<QueryResponse> {
     if (!configuration.config) {
-      throw new InternalServerError(
+      throw new Forbidden(
         "Internal Server Error, server configuration is invalid",
         {}
       );

@@ -2,7 +2,24 @@
 
 The Turso Data Connector allows for connecting to a libSQL database. This uses the [Typescript Data Connector SDK](https://github.com/hasura/ndc-sdk-typescript) and implements the [Data Connector Spec](https://github.com/hasura/ndc-spec). 
 
-In order to use this connector you will need a Turso database setup. This connector currently only supports querying. 
+In order to use this connector you will need a Turso database setup. 
+
+This connector supports:
+
+Querying:
+
+Relationships ✅
+Variables ✅
+
+Expirimental Mutations:
+
+This connector has experimental mutation support for insert, delete, and update.
+
+VIDEO OF QUICKSTART
+
+QUICKSTART DOCUMENTATION
+
+This connector currently only supports querying. 
 
 ## Before you get started
 It is recommended that you:

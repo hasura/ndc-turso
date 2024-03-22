@@ -3,9 +3,8 @@ import {
   Expression,
   QueryResponse,
   RowSet,
-  BadRequest,
-  NotSupported,
-  InternalServerError,
+  Conflict,
+  Forbidden,
   Query,
   Relationship,
 } from "@hasura/ndc-sdk-typescript";
@@ -59,7 +58,7 @@ function build_where(
   prefix: string
 ): string {
   if (!config.config){
-    throw new InternalServerError("Internal Server Error", {});
+    throw new Forbidden("Internal Server Error", {});
   }
   let sql = "";
   switch (expression.type) {
@@ -69,7 +68,7 @@ function build_where(
           sql = `${expression.column.name} IS NULL`;
           break;
         default:
-          throw new BadRequest("Unknown Unary Comparison Operator", {
+          throw new Conflict("Unknown Unary Comparison Operator", {
             "Unknown Operator": "This should never happen.",
           });
       }
@@ -85,9 +84,9 @@ function build_where(
           }
           break;
         case "column":
-          throw new BadRequest("Not implemented", {});
+          throw new Forbidden("Not implemented", {});
         default:
-          throw new BadRequest("Unknown Binary Comparison Value Type", {});
+          throw new Conflict("Unknown Binary Comparison Value Type", {});
       }
       const columnName = expression.column.name;
       
@@ -178,7 +177,7 @@ function build_where(
           sql = `${escape_double(prefix)}.${escape_double(columnName)} <= ?`;
           break;
         default:
-          throw new BadRequest("Binary Comparison Custom Operator not implemented", {});
+          throw new Forbidden("Binary Comparison Custom Operator not implemented", {});
       }
       break;
     case "and":
@@ -211,9 +210,9 @@ function build_where(
       break;
     case "exists":
       // EXISTS
-      throw new BadRequest("Not implemented", {});
+      throw new Forbidden("Not implemented", {});
     default:
-      throw new BadRequest("Unknown Expression Type!", {});
+      throw new Forbidden("Unknown Expression Type!", {});
   }
   return sql;
 }
@@ -240,7 +239,7 @@ function build_query(
   let where_conditions = ["WHERE 1"];
   if (query.aggregates) {
     // TODO: Add each aggregate to collectRows
-    throw new NotSupported("Aggregates not implemented yet!", {});
+    throw new Forbidden("Aggregates not implemented yet!", {});
   }
   if (query.fields) {
     for (let [field_name, field_value] of Object.entries(query.fields)) {
@@ -267,7 +266,7 @@ function build_query(
           path.pop(); // POST-ORDER search stack pop!
           break;
         default:
-          throw new InternalServerError("The types tricked me. 😭", {});
+          throw new Forbidden("The types tricked me. 😭", {});
       }
     }
   }
@@ -305,17 +304,17 @@ function build_query(
           );
           break;
         case "single_column_aggregate":
-          throw new NotSupported(
+          throw new Forbidden(
             "Single Column Aggregate not supported yet",
             {}
           );
         case "star_count_aggregate":
-          throw new NotSupported(
+          throw new Forbidden(
             "Single Column Aggregate not supported yet",
             {}
           );
         default:
-          throw new BadRequest("The types lied 😭", {});
+          throw new Forbidden("The types lied 😭", {});
       }
     }
     if (order_elems.length > 0) {
@@ -363,7 +362,7 @@ export async function plan_queries(
   query: QueryRequest
 ): Promise<SQLiteQuery[]> {
   if (!configuration.config) {
-    throw new InternalServerError("Connector is not properly configured", {});
+    throw new Forbidden("Connector is not properly configured", {});
   }
 
   let query_plan: SQLiteQuery[];
@@ -402,6 +401,7 @@ async function perform_query(
   state: State,
   query_plans: SQLiteQuery[]
 ): Promise<QueryResponse> {
+  try {
   const client = state.client;
   const results = await client.batch(query_plans, "read");
   let res = results.map((r) => {
@@ -409,6 +409,9 @@ async function perform_query(
     return row_set;
   });
   return res;
+} catch (e) {
+  throw new Forbidden("Failed to perform Query", {error: `${e}`});
+};
 }
 
 export async function do_query(

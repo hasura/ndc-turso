@@ -51,7 +51,6 @@ async function main() {
       object_types: object_types
     },
   };
-
   await writeFile(`/etc/connector/config.json`, JSON.stringify(res));
 }
 

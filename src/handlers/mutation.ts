@@ -1,4 +1,4 @@
-import { MutationOperation, MutationOperationResults, MutationRequest, MutationResponse, NotSupported } from "@hasura/ndc-sdk-typescript";
+import { Conflict, Forbidden, MutationOperation, MutationOperationResults, MutationRequest, MutationResponse, NotSupported } from "@hasura/ndc-sdk-typescript";
 import { Configuration, State } from "..";
 import { InArgs, InStatement, ResultSet } from "@libsql/client/.";
 
@@ -57,14 +57,14 @@ export async function do_mutation(configuration: Configuration, state: State, mu
     let operation_results: MutationOperationResults[] = [];
     for (let op of mutation.operations){
         if (op.type !== "procedure"){
-            throw new NotSupported("Not implemented yet.", {});
+            throw new Forbidden("Not implemented yet.", {});
         } else {
             procedures.push(op);
         }
     }
     for (let procedure of procedures){
         if (procedure.type !== "procedure"){
-            throw new NotSupported("Not implemented yet.", {});
+            throw new Forbidden("Not implemented yet.", {});
         }
         if (procedure.name === "sync"){
             const client = state.client;
@@ -92,11 +92,11 @@ export async function do_mutation(configuration: Configuration, state: State, mu
                         });
                     } catch (error) {
                         console.error("Error executing insert operation:", error);
-                        throw new Error("Failed to execute insert operation.");
+                        throw new Conflict("Failed to execute insert operation.", {error: `${error}`});
                     }
                 } else {
                     console.log("No SQL statement generated for insert operation.");
-                    throw new NotSupported("No data provided for insert operation.", {});
+                    throw new Forbidden("No data provided for insert operation.", {});
                 }
             } else if (procedure.name.startsWith("delete_") && procedure.name.endsWith("_by_pk")) {
                 const table: string = procedure.name.slice("delete_".length, -"_by_pk".length);
@@ -112,7 +112,7 @@ export async function do_mutation(configuration: Configuration, state: State, mu
                     });
                 } catch (error) {
                     console.error("Error executing delete operation:", error);
-                    throw new Error("Failed to execute delete operation.");
+                    throw new Conflict("Failed to execute delete operation.", {error: `${error}`});
                 }
             } else if (procedure.name.startsWith("update_") && procedure.name.endsWith("_by_pk")){
                 const table: string = procedure.name.slice("update_".length, -"_by_pk".length);
@@ -131,7 +131,7 @@ export async function do_mutation(configuration: Configuration, state: State, mu
                     });
                 } catch (error) {
                     console.error("Error executing update operation:", error);
-                    throw new Error("Failed to execute update operation.");
+                    throw new Conflict("Failed to execute update operation.");
                 }
             } else if (procedure.name.startsWith("update_") && procedure.name.endsWith("_many")){
                 const table: string = procedure.name.slice("update_".length, -"_many".length);
@@ -140,7 +140,7 @@ export async function do_mutation(configuration: Configuration, state: State, mu
                 const incArray = procedure.arguments._inc_array as any[] || [];
             
                 if (pkColumnsArray.length !== setArray.length || pkColumnsArray.length !== incArray.length) {
-                    throw new Error("Arrays must be of the same length.");
+                    throw new Forbidden("Arrays must be of the same length.");
                 }
             
                 const statements: InStatement[] = pkColumnsArray.map((pkColumns, index) => {
@@ -159,7 +159,7 @@ export async function do_mutation(configuration: Configuration, state: State, mu
                     });
                 } catch (error) {
                     console.error("Error executing batch update operation:", error);
-                    throw new Error("Failed to execute batch update operation.");
+                    throw new Conflict("Failed to execute batch update operation.", {error: `${error}`});
                 }
             } else if (procedure.name.startsWith("delete_") && procedure.name.endsWith("_many")) {
                 const table = procedure.name.slice("delete_".length, -"_many".length);
@@ -180,14 +180,14 @@ export async function do_mutation(configuration: Configuration, state: State, mu
                     });
                 } catch (error) {
                     console.error("Error executing batch delete operation:", error);
-                    throw new Error("Failed to execute batch delete operation.");
+                    throw new Conflict("Failed to execute batch delete operation.", {error: `${error}`});
                 }
             } else if (procedure.name.startsWith("insert_") && procedure.name.endsWith("_many")){
                 const table = procedure.name.slice("insert_".length, -"_many".length);
                 const data = procedure.arguments.objects as { [key: string]: any }[]; // Assuming `objects` is the name of the argument containing the records to insert
             
                 if (!data || data.length === 0) {
-                    throw new NotSupported("No data provided for insert_many operation.", {});
+                    throw new Forbidden("No data provided for insert_many operation.", {});
                 }
             
                 const [sql, values] = buildInsertSql(table, data);
@@ -203,11 +203,11 @@ export async function do_mutation(configuration: Configuration, state: State, mu
                     });
                 } catch (error) {
                     console.error("Error executing insert_many operation:", error);
-                    throw new Error("Failed to execute insert_many operation.");
+                    throw new Conflict("Failed to execute insert_many operation.", {error: `${error}`});
                 }
             } else {
                 console.log("NOT COVERED");
-                throw new NotSupported("Not implemented yet.", {});
+                throw new Forbidden("Not implemented yet.", {});
             }
         }
     }

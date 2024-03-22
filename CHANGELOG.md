@@ -5,6 +5,9 @@ This changelog documents changes between release tags.
 ## [Unreleased]
 Upcoming changes for the next versioned release.
 
+## [0.0.10]
+* Fix Error Handling so messages pass through to GraphQL engine
+
 ## [0.0.9]
 * Fix bug in filter joins
 
