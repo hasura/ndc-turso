@@ -1,126 +1,96 @@
 ## Turso Connector
 
-The Turso Data Connector allows for connecting to a libSQL database. This uses the [Typescript Data Connector SDK](https://github.com/hasura/ndc-sdk-typescript) and implements the [Data Connector Spec](https://github.com/hasura/ndc-spec). 
+The Turso Data Connector allows for connecting to a SQLite database. This connector uses the [Typescript Data Connector SDK](https://github.com/hasura/ndc-sdk-typescript) and implements the [Data Connector Spec](https://github.com/hasura/ndc-spec). 
 
-In order to use this connector you will need a Turso database setup. 
+### Setting up the Turso connector using Hasura Cloud & a Turso database
 
-This connector supports:
+#### Step 1: Prerequisites
 
-Querying:
+1. Install the [new Hasura CLI](https://hasura.io/docs/3.0/cli/installation/) — to quickly and easily create and manage your Hasura projects and builds.
+2. Install the [Hasura VS Code extension](https://marketplace.visualstudio.com/items?itemName=HasuraHQ.hasura) — with support for other editors coming soon!
+3. Have a [Turso](https://turso.tech/) database — for supplying data to your API.
 
-Relationships ✅
-Variables ✅
+#### Step 2: Login to Hasura
 
-Expirimental Mutations:
+After our prerequisites are taken care of, login to Hasura Cloud with the CLI:
 
-This connector has experimental mutation support for insert, delete, and update.
+`ddn login`
 
-VIDEO OF QUICKSTART
+This will open up a browser window and initiate an OAuth2 login flow. If the browser window doesn't open automatically, use the link shown in the terminal output to launch the flow.
 
-QUICKSTART DOCUMENTATION
+#### Step 3: Create a new project
 
-This connector currently only supports querying. 
+We'll use the `create project` command to create a new project:
 
-## Before you get started
-It is recommended that you:
+`ddn create project --dir ./ddn`
 
-* Clone this repo and run npm install
-* Install the [Hasura3 CLI](https://github.com/hasura/v3-cli#hasura-v3-cli)
-* Log in via the CLI
-* Install the [connector plugin](https://hasura.io/docs/latest/hasura-cli/connector-plugin/)
-* Install [VSCode](https://code.visualstudio.com)
-* Install the [Hasura VSCode Extension](https://marketplace.visualstudio.com/items?itemName=HasuraHQ.hasura)
-* (Optionally) Setup a [Turso Database instance](https://docs.turso.tech/tutorials/get-started-turso-cli)
+#### Step 4: Add a connector manifest
 
-## Deployment for Hasura Users
-To deploy a connector and use it in a Hasura V3 project, follow these steps:
+Let's move into the project directory:
 
-1. Create a Hasura V3 project (or use an existing project)
+`cd ddn`
 
-2. Generate a configuration file for your Turso Database.
-    Start the configuration server by running `npm run start-server` and then send a request with your database credentials.
-    You can see example http requests in the http_requests folder. You may need to edit your credentials here. You'll want to place the output in a JSON file named config.json
-3. Once you have a configuration file, you can deploy the connector onto Hasura Cloud
+Create a subgraph:
 
-Ensure you are logged in to Hasura CLI
+`ddn create subgraph turso`
 
-```hasura3 cloud login --pat 'YOUR-HASURA-TOKEN'```
+Then, create a connector manifest:
+`ddn add connector-manifest turso_connector --subgraph turso --hub-connector hasura/turso --type cloud`
 
-From there, you can deploy the connector:
+#### Step 5: Edit the connector manifest
 
-```hasura3 connector create turso:v1 --github-repo-url https://github.com/hasura/ndc-turso/tree/main --config-file ./config.json```
-
-
-## Usage
-
-Once your connector is deployed, you can get the URL of the connector using:
-```hasura3 connector list```
-
-```
-my-cool-connector:v1 https://connector-9XXX7-hyc5v23h6a-ue.a.run.app active
-```
-
-In order to use the connector once deployed you will first want to reference the connector in your project metadata:
+You should have a connector manifest created at `ddn/turso/turso_connector/connector/turso_connector.build.hml`
 
 ```yaml
-kind: "AuthConfig"
-allowRoleEmulationFor: "admin"
-webhook:
-  mode: "POST"
-  webhookUrl: "https://auth.pro.hasura.io/webhook/ddn?role=admin"
----
-kind: DataConnector
+kind: ConnectorManifest
 version: v1
+spec:
+  supergraphManifests:
+    - base
 definition:
-  name: my_connector
-  url:
-    singleUrl: 'https://connector-9XXX7-hyc5v23h6a-ue.a.run.app'
+  name: turso_connector
+  type: cloud
+  connector:
+    type: hub
+    name: hasura/turso:v0.0.10
+  deployments:
+    - context: .
+      env:
+        TURSO_AUTH_TOKEN:
+          value: ""
+        TURSO_URL:
+          value: ""
 ```
 
-If you have the [Hasura VSCode Extension](https://marketplace.visualstudio.com/items?itemName=HasuraHQ.hasura) installed
-you can run the following code actions:
+Fill in the value for the TURSO_AUTH_TOKEN and TURSO_URL environment variables with your Turso credentials.
 
-* `Hasura: Refresh data source`
-* `Hasura: Track all collections / functions ...`
+(Make sure to save your changes to the file!)
 
-This will integrate your connector into your Hasura project which can then be deployed or updated using the Hasura3 CLI:
+#### Step 6: Start a development session
+
+Start a Hasura dev session using the following command:
+
+`ddn dev`
+
+You should see something like this if the connector has been deployed successfully: 
 
 ```
-hasura3 cloud build create --project-id my-project-id --metadata-file metadata.hml
+4:13PM INF Building SupergraphManifest "base"...
++---------------+----------------------------------------------------------------------------------------------------+
+| Build Version | 9c06480568                                                                                         |
++---------------+----------------------------------------------------------------------------------------------------+
+| API URL       | https://optimum-dragon-2392-9c06480568.ddn.hasura.app/graphql                                      |
++---------------+----------------------------------------------------------------------------------------------------+
+| Console URL   | https://console.hasura.io/project/optimum-dragon-2392/environment/default/build/9c06480568/graphql |
++---------------+----------------------------------------------------------------------------------------------------+
+| Project Name  | optimum-dragon-2392                                                                                |
++---------------+----------------------------------------------------------------------------------------------------+
+| Description   | Dev build - Mon, 15 Apr 2024 16:13:07 CDT                                                          |
++---------------+----------------------------------------------------------------------------------------------------+
 ```
 
-## Service Authentication
+Navigate to your Console URL and you can issue a query or mutation.
 
-If you don't wish to have your connector publically accessible then you must set a service token by specifying the  `SERVICE_TOKEN_SECRET` environment variable when creating your connector:
+### Setting up the Turso connector locally (Coming Soon)
 
-* `--env SERVICE_TOKEN_SECRET=SUPER_SECRET_TOKEN_XXX123`
-
-Your Hasura project metadata must then set a matching bearer token:
-
-```yaml
-kind: DataConnector
-version: v1
-definition:
-  name: my_connector
-  url:
-    singleUrl: 'https://connector-9XXX7-hyc5v23h6a-ue.a.run.app'
-  headers:
-    Authorization:
-      value: "Bearer SUPER_SECRET_TOKEN_XXX123"
-```
-
-While you can specify the token inline as above, it is recommended to use the Hasura secrets functionality for this purpose:
-
-```yaml
-kind: DataConnector
-version: v1
-definition:
-  name: my_connector
-  url:
-    singleUrl: 'https://connector-9XXX7-hyc5v23h6a-ue.a.run.app'
-  headers:
-    Authorization:
-      valueFromSecret: BEARER_TOKEN_SECRET
-```
-
-NOTE: This secret should contain the `Bearer ` prefix.
+Please keep an eye out for instructions on running things locally which will be coming soon. 
