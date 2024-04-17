@@ -5,7 +5,11 @@ import { introspect_table } from "./src/utilities";
 import { BASE_FIELDS, BASE_TYPES } from "./src/constants";
 import { Configuration, ObjectFieldDetails } from "./src";
 const writeFile = promisify(fs.writeFile);
-
+const readFile = promisify(fs.readFile);
+let HASURA_CONFIGURATION_DIRECTORY = process.env["HASURA_CONFIGURATION_DIRECTORY"] as string | undefined;
+if (HASURA_CONFIGURATION_DIRECTORY === undefined || HASURA_CONFIGURATION_DIRECTORY.length === 0){
+    HASURA_CONFIGURATION_DIRECTORY = ".";
+}
 const TURSO_URL = process.env["TURSO_URL"] as string;
 let TURSO_SYNC_URL = process.env["TURSO_SYNC_URL"] as string | undefined;
 if (TURSO_SYNC_URL?.length === 0){
@@ -51,7 +55,20 @@ async function main() {
       object_types: object_types
     },
   };
-  await writeFile(`/etc/connector/config.json`, JSON.stringify(res));
+  const jsonString = JSON.stringify(res, null, 4);
+  let filePath = `${HASURA_CONFIGURATION_DIRECTORY}/config.json`;
+  try {
+      const existingData = await readFile(filePath, 'utf8');
+      if (existingData !== jsonString) {
+          await writeFile(filePath, jsonString);
+          console.log('File updated.');
+      } else {
+          console.log('No changes detected. File not updated.');
+      }
+  } catch (error) {
+      await writeFile(filePath, jsonString);
+      console.log('New file written.');
+  }
 }
 
 main();

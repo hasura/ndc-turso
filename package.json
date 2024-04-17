@@ -1,11 +1,14 @@
 {
     "name": "ndc-turso",
-    "version": "0.0.10",
+    "version": "0.0.11",
     "main": "index.js",
     "author": "Tristen Harr",
-    "scripts": {},
+    "scripts": {
+        "start": "ts-node ./src/index.ts serve --configuration=.",
+        "generate-config": "ts-node generate-config"
+    },
     "dependencies": {
-        "@hasura/ndc-sdk-typescript": "^4.2.1",
+        "@hasura/ndc-sdk-typescript": "^4.5.0",
         "@json-schema-tools/meta-schema": "^1.7.0",
         "@libsql/client": "^0.5.2",
         "@types/node": "^20.6.0",
