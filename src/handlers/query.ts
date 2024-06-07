@@ -12,10 +12,9 @@ import { Configuration, State } from "..";
 import { MAX_32_INT } from "../constants";
 const SqlString = require("sqlstring-sqlite");
 // import { format } from "sql-formatter";
+
 const escape_single = (s: any) => SqlString.escape(s);
 const escape_double = (s: any) => `"${SqlString.escape(s).slice(1, -1)}"`;
-
-// TODO: EXISTS, IN
 
 type QueryVariables = {
   [key: string]: any;
@@ -24,6 +23,20 @@ type QueryVariables = {
 export type SQLiteQuery = {
   sql: string;
   args: any[];
+};
+
+const formatSQLWithArgs = (sql: string, args: any[]): string => {
+  let index = 0;
+  return sql.replace(/\?/g, () => {
+    const arg = args[index++];
+    if (typeof arg === 'string') {
+      return `'${arg}'`;
+    } else if (arg === null) {
+      return 'NULL';
+    } else {
+      return arg;
+    }
+  });
 };
 
 function wrap_data(s: string): string {
@@ -57,7 +70,7 @@ function build_where(
   config: Configuration,
   prefix: string
 ): string {
-  if (!config.config){
+  if (!config.config) {
     throw new Forbidden("Internal Server Error", {});
   }
   let sql = "";
@@ -89,44 +102,21 @@ function build_where(
           throw new Conflict("Unknown Binary Comparison Value Type", {});
       }
       const columnName = expression.column.name;
-      
-    if (expression.column.type === "column" && expression.column.path.length > 0) {
-      let currentTable = prefix;
-      let currentAlias = prefix;
-      let aliases: { [key: string]: string } = {};
 
-      for (let path_elem of expression.column.path) {
-        const collection_relationship = collection_relationships[path_elem.relationship];
-        const relationship = JSON.parse(path_elem.relationship);
-        const from = relationship[0];
-        const to = collection_relationship.target_collection;
-        const from_details = config.config.object_fields[from.name];
+      if (expression.column.type === "column" && expression.column.path.length > 0) {
+        let currentAlias = prefix;
+        let aliases: { [key: string]: string } = {};
 
-        let joined = false;
-        for (let [key, value] of Object.entries(from_details.foreign_keys)) {
-          if (value.table === to) {
-            let toAlias;
-            if (aliases[to]) {
-              toAlias = aliases[to];
-            } else {
-              toAlias = `${currentAlias}_${to}`;
-              aliases[to] = toAlias;
-            }
-            const join_str = ` JOIN ${escape_double(to)} AS ${escape_double(toAlias)} ON ${escape_double(currentAlias)}.${escape_double(key)} = ${escape_double(toAlias)}.${escape_double(value.column)} `;
-            if (!filter_joins.includes(join_str)) {
-              filter_joins.push(join_str);
-            }
-            currentTable = to;
-            currentAlias = toAlias;
-            joined = true;
-            break;
-          }
-        }
+        for (let path_elem of expression.column.path) {
+          const collection_relationship = collection_relationships[path_elem.relationship];
+          const relationship = JSON.parse(path_elem.relationship);
+          const from = relationship[0];
+          const to = collection_relationship.target_collection;
+          const from_details = config.config.object_fields[from.name];
 
-        if (!joined) {
-          const to_details = config.config.object_fields[to];
-          for (let [key, value] of Object.entries(to_details.foreign_keys)) {
-            if (value.table === from.name) {
+          let joined = false;
+          for (let [key, value] of Object.entries(from_details.foreign_keys)) {
+            if (value.table === to) {
               let toAlias;
               if (aliases[to]) {
                 toAlias = aliases[to];
@@ -134,22 +124,42 @@ function build_where(
                 toAlias = `${currentAlias}_${to}`;
                 aliases[to] = toAlias;
               }
-              const join_str = ` JOIN ${escape_double(to)} AS ${escape_double(toAlias)} ON ${escape_double(toAlias)}.${escape_double(key)} = ${escape_double(currentAlias)}.${escape_double(value.column)} `;
+              const join_str = ` JOIN ${escape_double(to)} AS ${escape_double(toAlias)} ON ${escape_double(currentAlias)}.${escape_double(key)} = ${escape_double(toAlias)}.${escape_double(value.column)} `;
               if (!filter_joins.includes(join_str)) {
                 filter_joins.push(join_str);
               }
-              currentTable = to;
               currentAlias = toAlias;
               joined = true;
               break;
             }
           }
-        }
-      }
 
-      sql = `${escape_double(currentAlias)}.${escape_double(expression.column.name)} = ?`;
-      break;
-    }
+          if (!joined) {
+            const to_details = config.config.object_fields[to];
+            for (let [key, value] of Object.entries(to_details.foreign_keys)) {
+              if (value.table === from.name) {
+                let toAlias;
+                if (aliases[to]) {
+                  toAlias = aliases[to];
+                } else {
+                  toAlias = `${currentAlias}_${to}`;
+                  aliases[to] = toAlias;
+                }
+                const join_str = ` JOIN ${escape_double(to)} AS ${escape_double(toAlias)} ON ${escape_double(toAlias)}.${escape_double(key)} = ${escape_double(currentAlias)}.${escape_double(value.column)} `;
+                if (!filter_joins.includes(join_str)) {
+                  filter_joins.push(join_str);
+                }
+                currentAlias = toAlias;
+                joined = true;
+                break;
+              }
+            }
+          }
+        }
+
+        sql = `${escape_double(currentAlias)}.${escape_double(expression.column.name)} = ?`;
+        break;
+      }
 
       switch (expression.operator) {
         case "_eq":
@@ -209,8 +219,29 @@ function build_where(
       sql = `NOT (${not_result})`;
       break;
     case "exists":
-      // EXISTS
-      throw new Forbidden("Not implemented", {});
+      const { in_collection, predicate } = expression;
+
+      let subquery_sql = "";
+      let subquery_alias = `${prefix}_exists`;
+
+      if (in_collection.type === "related") {
+        const relationship = collection_relationships[in_collection.relationship];
+
+        let from_collection = relationship.target_collection;
+        subquery_sql = `
+          SELECT 1
+          FROM ${escape_double(from_collection)} AS ${escape_double(subquery_alias)}
+          WHERE ${predicate ? build_where(predicate, collection_relationships, args, variables, [], config, subquery_alias) : '1 = 1'}
+          AND ${Object.entries(relationship.column_mapping).map(([from, to]) => {
+            return `${escape_double(prefix)}.${escape_double(from)} = ${escape_double(subquery_alias)}.${escape_double(to)}`;
+          }).join(" AND ")}
+        `;
+      } else if (in_collection.type === "unrelated") {
+        throw new Forbidden("Unrelated collection type not supported!", {});
+      }
+
+      sql = `EXISTS (${subquery_sql})`;
+      break;
     default:
       throw new Forbidden("Unknown Expression Type!", {});
   }
@@ -225,12 +256,14 @@ function build_query(
   path: string[],
   variables: QueryVariables,
   args: any[],
-  relationship_key: string | null
+  relationship_key: string | null,
+  collection_relationships: {
+    [k: string]: Relationship;
+  }
 ): SQLiteQuery {
   let sql = "";
   path.push(collection);
   let collection_alias = path.join("_");
-  // let indent = "    ".repeat(path.length - 1);
 
   let limit_sql = ``;
   let offset_sql = ``;
@@ -238,7 +271,6 @@ function build_query(
   let collect_rows = [];
   let where_conditions = ["WHERE 1"];
   if (query.aggregates) {
-    // TODO: Add each aggregate to collectRows
     throw new Forbidden("Aggregates not implemented yet!", {});
   }
   if (query.fields) {
@@ -259,11 +291,12 @@ function build_query(
                 path,
                 variables,
                 args,
-                field_value.relationship
+                field_value.relationship,
+                collection_relationships
               ).sql
             })`
           );
-          path.pop(); // POST-ORDER search stack pop!
+          path.pop();
           break;
         default:
           throw new Forbidden("The types tricked me. 😭", {});
@@ -294,14 +327,30 @@ function build_query(
     where_conditions.push(`(${build_where(query.predicate, query_request.collection_relationships, args, variables, filter_joins, config, collection_alias)})`);
   }
 
-  if (query.order_by) {
+  if (query.order_by && config.config) {
     let order_elems: string[] = [];
     for (let elem of query.order_by.elements) {
       switch (elem.target.type) {
         case "column":
-          order_elems.push(
-            `${escape_double(elem.target.name)} ${elem.order_direction}`
-          );
+          if (elem.target.path.length === 0){
+            order_elems.push(
+              `${escape_double(elem.target.name)} ${elem.order_direction}`
+            );
+          } else {
+            let currentAlias = collection_alias;
+            for (let path_elem of elem.target.path) {
+              const relationship = collection_relationships[path_elem.relationship];
+              const nextAlias = `${currentAlias}_${relationship.target_collection}`;
+              const join_str = `JOIN ${escape_double(relationship.target_collection)} AS ${escape_double(nextAlias)} ON ${Object.entries(relationship.column_mapping).map(([from, to]) => `${escape_double(currentAlias)}.${escape_double(from)} = ${escape_double(nextAlias)}.${escape_double(to)}`).join(" AND ")}`;
+              if (!filter_joins.includes(join_str)) {
+                filter_joins.push(join_str);
+              }
+              currentAlias = nextAlias;
+            }
+            order_elems.push(
+              `LOWER(${escape_double(currentAlias)}.${escape_double(elem.target.name)}) ${elem.order_direction}`
+            );
+          }
           break;
         case "single_column_aggregate":
           throw new Forbidden(
@@ -310,7 +359,7 @@ function build_query(
           );
         case "star_count_aggregate":
           throw new Forbidden(
-            "Single Column Aggregate not supported yet",
+            "Star Count Aggregate not supported yet",
             {}
           );
         default:
@@ -346,9 +395,7 @@ ${offset_sql}
 
   if (path.length === 1) {
     sql = wrap_data(sql);
-    // console.log(format(sql, { language: "sqlite" }));
-    // console.log(sql);
-    // console.log(args);
+    // console.log(format(formatSQLWithArgs(sql, args), { language: "sqlite" }));
   }
 
   return {
@@ -377,7 +424,8 @@ export async function plan_queries(
         [],
         query_variables,
         [],
-        null
+        null,
+        query.collection_relationships
       );
     });
     query_plan = await Promise.all(promises);
@@ -390,7 +438,8 @@ export async function plan_queries(
       [],
       {},
       [],
-      null
+      null,
+      query.collection_relationships
     );
     query_plan = [promise];
   }
@@ -402,16 +451,16 @@ async function perform_query(
   query_plans: SQLiteQuery[]
 ): Promise<QueryResponse> {
   try {
-  const client = state.client;
-  const results = await client.batch(query_plans, "read");
-  let res = results.map((r) => {
-    let row_set = JSON.parse(r.rows[0].data as string) as RowSet;
-    return row_set;
-  });
-  return res;
-} catch (e) {
-  throw new Forbidden("Failed to perform Query", {error: `${e}`});
-};
+    const client = state.client;
+    const results = await client.batch(query_plans, "read");
+    let res = results.map((r) => {
+      let row_set = JSON.parse(r.rows[0].data as string) as RowSet;
+      return row_set;
+    });
+    return res;
+  } catch (e) {
+    throw new Forbidden("Failed to perform Query", {error: `${e}`});
+  }
 }
 
 export async function do_query(
@@ -419,7 +468,6 @@ export async function do_query(
   state: State,
   query: QueryRequest
 ): Promise<QueryResponse> {
-  // console.log(query);
   let query_plans = await plan_queries(configuration, query);
   return perform_query(state, query_plans);
 }

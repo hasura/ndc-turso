@@ -9,3 +9,5 @@ local.db-shm
 local.db-wal
 dist/
 config.json
+chinook.sqlite
+TMP.md

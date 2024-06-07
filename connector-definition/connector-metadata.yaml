@@ -1,6 +1,6 @@
 packagingDefinition:
   type: PrebuiltDockerImage
-  dockerImage: ghcr.io/hasura/ndc-turso:v0.0.11
+  dockerImage: ghcr.io/hasura/ndc-turso:v0.0.12
 supportedEnvironmentVariables:
   - name: TURSO_URL
     description: The url for the Turso database
@@ -9,7 +9,7 @@ supportedEnvironmentVariables:
 commands:
   update:
     type: Dockerized
-    dockerImage: ghcr.io/hasura/ndc-turso:v0.0.11
+    dockerImage: ghcr.io/hasura/ndc-turso:v0.0.12
     commandArgs:
       - update
 dockerComposeWatch:

@@ -5,6 +5,10 @@ This changelog documents changes between release tags.
 ## [Unreleased]
 Upcoming changes for the next versioned release.
 
+## [0.0.12]
+* Fix multi-arch build
+* Fix OrderBy filtering
+
 ## [0.0.11]
 * Update SDK to 4.5.0
 * Update packaging to use a Dockerized Command
