@@ -8,6 +8,61 @@ function is_numeric_type(type_name: string): boolean {
     return numeric_types.includes(type_name);
 }
 
+function get_field_operators(field_type: string): Record<string, string> {
+    if (field_type === 'Int' || field_type === 'Float') {
+        return {
+            "_eq": field_type,
+            "_neq": field_type,
+            "_gt": field_type,
+            "_lt": field_type,
+            "_gte": field_type,
+            "_lte": field_type,
+            "_is_null": "Boolean"
+        };
+    } else if (field_type === 'String') {
+        return {
+            "_eq": field_type,
+            "_neq": field_type,
+            "_like": field_type,
+            "_is_null": "Boolean"
+        };
+    }
+    return {};
+}
+
+function get_nested_where(cn: string, new_object_fields: { [fieldName: string]: ObjectField }, nested: number = 1): ObjectType {
+    if (nested === 0) {
+        return {
+            description: `Where for ${cn}`,
+            fields: { ...new_object_fields }
+        };
+    }
+    return {
+        description: `Where for ${cn}`,
+        fields: {
+            ...new_object_fields,
+            "_not": {
+                type: {
+                    type: "nullable",
+                    underlying_type: { type: "named", name: `list_${cn}_bool_exp${'_nested'.repeat(nested)}` }
+                }
+            },
+            "_or": {
+                type: {
+                    type: "nullable",
+                    underlying_type: { type: "array", element_type: { type: "named", name: `list_${cn}_bool_exp${'_nested'.repeat(nested)}` } }
+                }
+            },
+            "_and": {
+                type: {
+                    type: "nullable",
+                    underlying_type: { type: "array", element_type: { type: "named", name: `list_${cn}_bool_exp${'_nested'.repeat(nested)}` } }
+                }
+            }
+        }
+    };
+}
+
 export function do_get_schema(configuration: Configuration): SchemaResponse {
     const { config } = configuration;
     if (!config) {
@@ -50,12 +105,33 @@ export function do_get_schema(configuration: Configuration): SchemaResponse {
                 foreign_keys: foreign_keys
             });
 
+            const new_object_fields: { [fieldName: string]: ObjectField } = {};
+            const insert_object_fields: { [fieldName: string]: ObjectField } = {};
 
-            const new_object_fields: { [fieldName: string]: ObjectField} = {};
             field_details.field_names.forEach(fieldName => {
+                const field_type = field_details.field_types[fieldName];
+                const operators = get_field_operators(field_type);
+                const field_input_type_name = `${field_type}_comparison_exp`;
+
+                if (!object_types[field_input_type_name]) {
+                    object_types[field_input_type_name] = {
+                        description: `Input type for filtering on field '${fieldName}'`,
+                        fields: Object.fromEntries(Object.entries(operators).map(([op, operator_type]) => [
+                            op, { type: { type: "nullable", underlying_type: { type: "named", name: operator_type } } }
+                        ]))
+                    };
+                }
+
+                new_object_fields[fieldName] = {
+                    type: {
+                        type: "nullable",
+                        underlying_type: { type: "named", name: field_input_type_name }
+                    }
+                };
+
                 const isNullable = field_details.nullable_keys.includes(fieldName);
-                if (isNullable){
-                    new_object_fields[fieldName] = {
+                if (isNullable) {
+                    insert_object_fields[fieldName] = {
                         type: {
                             type: "nullable",
                             underlying_type: {
@@ -65,7 +141,7 @@ export function do_get_schema(configuration: Configuration): SchemaResponse {
                         }
                     };
                 } else {
-                    new_object_fields[fieldName] = {
+                    insert_object_fields[fieldName] = {
                         type: {
                             type: "named",
                             name: field_details.field_types[fieldName]
@@ -73,10 +149,47 @@ export function do_get_schema(configuration: Configuration): SchemaResponse {
                     };
                 }
             });
+
             object_types[`${cn}_InsertType`] = {
                 description: `Insert type for ${cn}`,
-                fields: new_object_fields,
+                fields: insert_object_fields,
             };
+
+            // object_types[`list_${cn}_bool_exp_nested_nested_nested`] = get_nested_where(cn, new_object_fields, 0);
+            // object_types[`list_${cn}_bool_exp_nested_nested`] = get_nested_where(cn, new_object_fields, 3);
+            // object_types[`list_${cn}_bool_exp_nested`] = get_nested_where(cn, new_object_fields, 2);
+            // object_types[`list_${cn}_bool_exp`] = get_nested_where(cn, new_object_fields, 1);
+
+            // const listProcedure: ProcedureInfo = {
+            //     name: `list_${cn}`,
+            //     description: `List records from the ${cn} collection.`,
+            //     arguments: {
+            //         "limit": {
+            //             type: {
+            //                 type: "nullable",
+            //                 underlying_type: { type: "named", name: "Int" }
+            //             }
+            //         },
+            //         "offset": {
+            //             type: {
+            //                 type: "nullable",
+            //                 underlying_type: { type: "named", name: "Int" }
+            //             }
+            //         },
+            //         "where": {
+            //             type: {
+            //                 type: "nullable",
+            //                 underlying_type: { type: "named", name: `list_${cn}_bool_exp` }
+            //             }
+            //         }
+            //     },
+            //     result_type: {
+            //         type: "array",
+            //         element_type: { type: "named", name: `${cn}_InsertType` }
+            //     }
+            // };
+            // procedures.push(listProcedure);
+
             const insertOneProcedure: ProcedureInfo = {
                 name: `insert_${cn}_one`,
                 description: `Insert a single record into the ${cn} collection.`,

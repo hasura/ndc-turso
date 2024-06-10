@@ -173,6 +173,14 @@ export const SCALAR_TYPES: { [key: string]: ScalarType } = {
           },
         },
       }
+    },
+    Boolean: {
+      aggregate_functions: {},
+      comparison_operators: {
+        _eq: {
+          type: "equal"
+        }
+      }
     }
   };
   

@@ -1,13 +1,58 @@
-import { Conflict, Forbidden, MutationOperation, MutationOperationResults, MutationRequest, MutationResponse, NotSupported } from "@hasura/ndc-sdk-typescript";
+import { Conflict, Forbidden, MutationOperation, MutationOperationResults, MutationRequest, MutationResponse, NestedField } from "@hasura/ndc-sdk-typescript";
 import { Configuration, State } from "..";
 import { InArgs, InStatement, ResultSet } from "@libsql/client/.";
+import { format } from "sql-formatter";
 
 async function execute_sql_transaction(state: State, statements: InStatement[]): Promise<ResultSet[]> {
     const results = state.client.batch(statements, "write");
     return results;
 }
 
-function buildInsertSql(table: string, data: any[]): [string, any[]] {
+const formatSQLWithArgs = (sql: string, args: any[]): string => {
+    let index = 0;
+    return sql.replace(/\?/g, () => {
+      const arg = args[index++];
+      if (typeof arg === 'string') {
+        return `'${arg}'`;
+      } else if (arg === null) {
+        return 'NULL';
+      } else {
+        return arg;
+      }
+    });
+  };
+
+  function buildReturningClause(returnFields: NestedField | null | undefined): string {
+    if (!returnFields || !returnFields.fields) {
+        return '*'; // Default to returning all columns if returnFields is not provided
+    }
+
+    const extractColumns = (fields: { [key: string]: any }): string[] => {
+        return Object.entries(fields).map(([fieldKey, fieldValue]) => {
+            if (fieldValue.type === 'column') {
+                return `"${fieldValue.column}" AS "${fieldKey}"`;
+            }
+            return null;
+        }).filter(Boolean) as string[];
+    };
+
+    if (returnFields.type === 'array' && returnFields.fields?.type === 'object') {
+        const columns = extractColumns(returnFields.fields.fields);
+        return columns.join(", ");
+    }
+
+    if (returnFields.type === 'object') {
+        const columns = extractColumns(returnFields.fields);
+        return columns.join(", ");
+    }
+
+    return '*'; // Default case
+}
+
+function buildInsertSql(
+    table: string,
+     data: any[],
+     returnFields:  NestedField | null | undefined): [string, any[]] {
     if (data.length === 0) {
         return ["", []];
     }
@@ -15,13 +60,20 @@ function buildInsertSql(table: string, data: any[]): [string, any[]] {
     const columns = Object.keys(data[0]).map(col => `"${col}"`).join(", ");
     const placeholders = "(" + Object.keys(data[0]).map(() => "?").join(", ") + ")";
     const valuesTuple = Array(data.length).fill(placeholders).join(", ");
-    const sql = `INSERT INTO "${table}" (${columns}) VALUES ${valuesTuple} RETURNING *`; // Always include RETURNING *
+    const returning = buildReturningClause(returnFields);
+    const sql = `INSERT INTO "${table}" (${columns}) VALUES ${valuesTuple} RETURNING ${returning}`; // Always include RETURNING *
     const values: InArgs[] = data.reduce((acc, item) => acc.concat(Object.values(item)), []);
 
     return [sql, values];
 }
 
-function buildUpdateSql(table: string, pkColumns: { [key: string]: any }, setArguments: { [key: string]: any }, incArguments: { [key: string]: any }): [string, any[]] {
+function buildUpdateSql(
+    table: string,
+     pkColumns: { [key: string]: any },
+      setArguments: { [key: string]: any },
+       incArguments: { [key: string]: any },
+       returnFields:  NestedField | null | undefined
+       ): [string, any[]] {
     const setClauses: string[] = [];
     const args: any[] = [];
 
@@ -41,14 +93,19 @@ function buildUpdateSql(table: string, pkColumns: { [key: string]: any }, setArg
     args.push(...Object.values(pkColumns));
 
     const setClause = setClauses.join(", ");
-    const sql = `UPDATE "${table}" SET ${setClause} WHERE ${whereClause} RETURNING *`;
+    const returning = buildReturningClause(returnFields);
+    const sql = `UPDATE "${table}" SET ${setClause} WHERE ${whereClause} RETURNING ${returning}`;
     return [sql, args];
 }
 
-function buildDeleteSql(table: string, pkColumns: { [key: string]: any }): [string, any[]] {
+function buildDeleteSql(
+    table: string, 
+    pkColumns: { [key: string]: any },
+    returnFields:  NestedField | null | undefined): [string, any[]] {
     const whereClause = Object.keys(pkColumns).map(column => `"${column}" = ?`).join(" AND ");
     const args: InArgs[] = Object.values(pkColumns);
-    const sql = `DELETE FROM "${table}" WHERE ${whereClause} RETURNING *`;
+    const returning = buildReturningClause(returnFields);
+    const sql = `DELETE FROM "${table}" WHERE ${whereClause} RETURNING ${returning}`;
     return [sql, args];
 }
 
@@ -79,7 +136,7 @@ export async function do_mutation(configuration: Configuration, state: State, mu
             if (procedure.name.startsWith("insert_") && procedure.name.endsWith("_one")){
                 const table: string = procedure.name.slice("insert_".length, -"_one".length);
                 const data = [procedure.arguments.object];
-                const [sql, values] = buildInsertSql(table, data);
+                const [sql, values] = buildInsertSql(table, data, procedure.fields);
 
                 if (sql) {
                     try {
@@ -101,7 +158,7 @@ export async function do_mutation(configuration: Configuration, state: State, mu
             } else if (procedure.name.startsWith("delete_") && procedure.name.endsWith("_by_pk")) {
                 const table: string = procedure.name.slice("delete_".length, -"_by_pk".length);
                 const pkColumns = procedure.arguments.pk_columns as { [key: string]: any; };
-                const [sql, values] = buildDeleteSql(table, pkColumns);
+                const [sql, values] = buildDeleteSql(table, pkColumns, procedure.fields);
                 try {
                     const results: ResultSet[] = await execute_sql_transaction(state, [{ sql, args: values }]);
                     const deleteResult = results[0]; // Assuming batch operation returns an array of ResultSet
@@ -119,7 +176,7 @@ export async function do_mutation(configuration: Configuration, state: State, mu
                 const pkColumns = procedure.arguments.pk_columns as { [key: string]: any; };
                 const setArguments = procedure.arguments._set || {};
                 const incArguments = procedure.arguments._inc || {};
-                const [sql, values] = buildUpdateSql(table, pkColumns, setArguments, incArguments);
+                const [sql, values] = buildUpdateSql(table, pkColumns, setArguments, incArguments, procedure.fields);
             
                 try {
                     const results: ResultSet[] = await execute_sql_transaction(state, [{ sql, args: values }]);
@@ -146,7 +203,7 @@ export async function do_mutation(configuration: Configuration, state: State, mu
                 const statements: InStatement[] = pkColumnsArray.map((pkColumns, index) => {
                     const setArguments = setArray[index] || {};
                     const incArguments = incArray[index] || {};
-                    const [sql, args] = buildUpdateSql(table, pkColumns, setArguments, incArguments);
+                    const [sql, args] = buildUpdateSql(table, pkColumns, setArguments, incArguments, procedure.fields);
                     return { sql, args };
                 });
 
@@ -167,7 +224,7 @@ export async function do_mutation(configuration: Configuration, state: State, mu
             
                 // Create a batch of delete statements
                 const statements: InStatement[] = pkColumnsArray.map(pkColumns => {
-                    const [sql, args] = buildDeleteSql(table, pkColumns);
+                    const [sql, args] = buildDeleteSql(table, pkColumns, procedure.fields);
                     return { sql, args };
                 });
 
@@ -190,7 +247,7 @@ export async function do_mutation(configuration: Configuration, state: State, mu
                     throw new Forbidden("No data provided for insert_many operation.", {});
                 }
             
-                const [sql, values] = buildInsertSql(table, data);
+                const [sql, values] = buildInsertSql(table, data, procedure.fields);
             
                 try {
                     const results: ResultSet[] = await execute_sql_transaction(state, [{ sql, args: values }]);
@@ -211,6 +268,7 @@ export async function do_mutation(configuration: Configuration, state: State, mu
             }
         }
     }
+
     return {
         operation_results: operation_results
     };

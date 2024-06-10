@@ -5,6 +5,9 @@ This changelog documents changes between release tags.
 ## [Unreleased]
 Upcoming changes for the next versioned release.
 
+## [0.0.15]
+* Fix mutations
+
 ## [0.0.14]
 * Change orderBy to use default casing. (Ordering is case-sensitive and uses underlying implementation which differs from Postgres)
 
