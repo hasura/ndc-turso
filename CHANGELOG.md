@@ -5,6 +5,9 @@ This changelog documents changes between release tags.
 ## [Unreleased]
 Upcoming changes for the next versioned release.
 
+## [0.0.26]
+* Fix PR request creation in github workflow
+
 ## [0.0.25]
 * Finalize workflow integration to create a PR in ndc-hub
 
