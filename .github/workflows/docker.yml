@@ -68,22 +68,21 @@ jobs:
           set -e pipefail
           export DOCKER_IMAGE=$(echo "$DOCKER_METADATA_OUTPUT_JSON" | jq -r '.tags[0]')
           make build
-
-      - name: Calculate SHA256 checksum
-        id: calculate_checksum
-        run: |
-            echo "sha256=$(sha256sum ./connector-definition/dist/connector-definition.tgz | awk '{ print $1 }')" >> $GITHUB_OUTPUT
-  
-      - name: Get commit hash
-        id: get_commit_hash
-        run: echo "commit_hash=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
-
         working-directory: ./connector-definition
       - uses: actions/upload-artifact@v4
         with:
           name: connector-definition.tgz
           path: ./connector-definition/dist/connector-definition.tgz
           compression-level: 0 # Already compressed
+
+      - name: Calculate SHA256 checksum
+        id: calculate_checksum
+        run: |
+              echo "SHA256=$(sha256sum ./connector-definition/dist/connector-definition.tgz | awk '{ print $1 }')" >> $GITHUB_ENV
+    
+      - name: Get commit hash
+        id: get_commit_hash
+        run: echo "COMMIT_HASH=$(git rev-parse HEAD)" >> $GITHUB_ENV
 
   release-connector:
     name: Release connector
