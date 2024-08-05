@@ -5,6 +5,10 @@ This changelog documents changes between release tags.
 ## [Unreleased]
 Upcoming changes for the next versioned release.
 
+## [0.0.16]
+* Update SDK to 5.2.0
+* Pin version to 0.1.5
+
 ## [0.0.15]
 * Fix mutations
 

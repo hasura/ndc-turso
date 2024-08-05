@@ -30,7 +30,7 @@ const determine_type = (dataType: string): Type => {
       } else if (dataType.startsWith("NUMERIC")) {
         return { type: "named", name: "Float" };
       }
-      throw new Error("NOT IMPLEMENTED");
+      return { type: "named", name: "String" }; // Unknown types get cast to strings
   }
 };
 
@@ -62,96 +62,62 @@ export const introspect_table = async (
     field_types: {},
     foreign_keys: {},
   };
-
-  try {
-    for (const column of columns_result.rows) {
-      if (typeof column.name !== "string") {
-        throw new Error("Column name must be string");
-      }
-
-      const determined_type = determine_type(
-        (column.type as string).toUpperCase()
-      );
-      const final_type = wrap_nullable(
-        determined_type,
-        column.notnull === 1,
-        column.pk === 1
-      );
-
-      response.field_names.push(column.name);
-      if ((column.pk as number) > 0) {
-        response.primary_keys.push(column.name);
-      }
-      if (column.notnull === 0 && column.pk === 0) {
-        response.nullable_keys.push(column.name);
-      }
-      if (determined_type.type === "named") {
-        response.field_types[column.name] = determined_type.name;
-      }
-      response.object_types[column.name] = {
-        type: final_type,
-      };
+  
+  for (const column of columns_result.rows) {
+    if (typeof column.name !== "string") {
+      throw new Error("Column name must be string");
     }
 
-    // Introspect for foreign keys:
-    const foreign_keys_result = await client.execute(
-      `PRAGMA foreign_key_list(${table_name})`
+    const determined_type = determine_type(
+      (column.type as string).toUpperCase()
     );
-    for (const fk of foreign_keys_result.rows) {
-      response.foreign_keys[fk.from as string] = {
-        table: fk.table as string,
-        column: fk.to as string,
-      };
-    }
+    const final_type = wrap_nullable(
+      determined_type,
+      column.notnull === 1,
+      column.pk === 1
+    );
 
-    // Introspect for unique keys:
-    const index_list_result = await client.execute(
-      `PRAGMA index_list(${table_name})`
-    );
-    for (const index of index_list_result.rows) {
-      if (index.unique) {
-        const index_info_result = await client.execute(
-          `PRAGMA index_info(${index.name})`
-        );
-        for (const col of index_info_result.rows) {
-          if (!response.unique_keys.includes(col.name as string)) {
-            response.unique_keys.push(col.name as string);
-          }
+    response.field_names.push(column.name);
+    if ((column.pk as number) > 0) {
+      response.primary_keys.push(column.name);
+    }
+    if (column.notnull === 0 && column.pk === 0) {
+      response.nullable_keys.push(column.name);
+    }
+    if (determined_type.type === "named") {
+      response.field_types[column.name] = determined_type.name;
+    }
+    response.object_types[column.name] = {
+      type: final_type,
+    };
+  }
+
+  // Introspect for foreign keys:
+  const foreign_keys_result = await client.execute(
+    `PRAGMA foreign_key_list(${table_name})`
+  );
+  for (const fk of foreign_keys_result.rows) {
+    response.foreign_keys[fk.from as string] = {
+      table: fk.table as string,
+      column: fk.to as string,
+    };
+  }
+
+  // Introspect for unique keys:
+  const index_list_result = await client.execute(
+    `PRAGMA index_list(${table_name})`
+  );
+  for (const index of index_list_result.rows) {
+    if (index.unique) {
+      const index_info_result = await client.execute(
+        `PRAGMA index_info(${index.name})`
+      );
+      for (const col of index_info_result.rows) {
+        if (!response.unique_keys.includes(col.name as string)) {
+          response.unique_keys.push(col.name as string);
         }
       }
     }
-  } finally {
-    return response;
   }
+  return response;
 };
-
-type Resolver<T> = (value: T | PromiseLike<T>) => void;
-
-export function createBlockingQueue<T>() {
-  let queue: T[] = [];
-  let waitingResolvers: Resolver<T>[] = [];
-
-  function enqueue(item: T): void {
-    if (waitingResolvers.length > 0) {
-      // Resolve the first waiting dequeue if available
-      const resolve = waitingResolvers.shift()!;
-      resolve(item);
-    } else {
-      queue.push(item);
-    }
-  }
-
-  async function dequeue(): Promise<T> {
-    if (queue.length > 0) {
-      // Return an item from the queue immediately
-      return Promise.resolve(queue.shift()!);
-    } else {
-      // Wait for an item to be enqueued
-      return new Promise<T>((resolve) => {
-        waitingResolvers.push(resolve);
-      });
-    }
-  }
-
-  return { enqueue, dequeue };
-}
