@@ -101,3 +101,33 @@ jobs:
           files: |
             ./connector-definition/dist/connector-definition.tgz
           fail_on_unmatched_files: true
+
+      - name: Update ndc-hub
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CONNECTOR_NAME: turso
+        run: |
+            # Clone ndc-hub repository
+            git clone https://github.com/hasura/ndc-hub.git
+            cd ndc-hub
+  
+            # Create a new branch
+            git checkout -b update-${{ env.CONNECTOR_NAME }}-connector-v${{ steps.get-version.outputs.tagged_version }}
+  
+            cd registry/${{ env.CONNECTOR_NAME }}
+  
+            # Update metadata.json
+            jq --arg version "${{ steps.get-version.outputs.tagged_version }}" \
+              --arg version_tag "v${{ steps.get-version.outputs.tagged_version }}" \
+              '.packages += [{"version": $version}] |
+                .source_code.version += [{"tag": $version_tag}]' \
+              metadata.json > tmp.json && mv tmp.json metadata.json
+  
+            # Commit changes
+            git config user.name "GitHub Action"
+            git config user.email "action@github.com"
+            git add metadata.json
+            git commit -m "Update ${{ env.CONNECTOR_NAME }} connector metadata to version ${{ steps.get-version.outputs.tagged_version }}"
+  
+            # Push changes
+            git push https://${{ secrets.GITHUB_TOKEN }}@github.com/hasura/ndc-hub.git HEAD:update-${{ env.CONNECTOR_NAME }}-connector-v${{ steps.get-version.outputs.tagged_version }}
