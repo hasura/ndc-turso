@@ -1,4 +1,3 @@
-
 # Example modified from https://docs.github.com/en/actions/publishing-packages/publishing-docker-images
 name: Create and publish a Docker image
 
@@ -45,7 +44,7 @@ jobs:
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
-          password: ${{ secrets.PAT_TOKEN }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       # This step uses [docker/metadata-action](https://github.com/docker/metadata-action#about) to extract tags and labels that will be applied to the specified image. The `id` "meta" allows the output of this step to be referenced in a subsequent step. The `images` value provides the base name for the tags and labels.
       - name: Extract metadata (tags, labels) for Docker
         id: meta
@@ -119,7 +118,6 @@ jobs:
 
       - name: Update ndc-hub
         env:
-          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
           CONNECTOR_NAME: turso
           COMMIT_HASH: ${{ needs.build-and-push-image.outputs.commit_hash }}
           SHA256: ${{ needs.build-and-push-image.outputs.sha256 }}
@@ -129,8 +127,9 @@ jobs:
             cd ndc-hub
   
             # Create a new branch
-            git checkout -b update-${{ env.CONNECTOR_NAME }}-connector-v${{ steps.get-version.outputs.tagged_version }}
-  
+            NEW_BRANCH="update-${{ env.CONNECTOR_NAME }}-connector-v${{ steps.get-version.outputs.tagged_version }}"
+            git checkout -b $NEW_BRANCH
+
             cd registry/${{ env.CONNECTOR_NAME }}
   
             # Update metadata.json
@@ -166,3 +165,12 @@ jobs:
   
             # Push changes
             git push https://${{ secrets.PAT_TOKEN }}@github.com/hasura/ndc-hub.git HEAD:update-${{ env.CONNECTOR_NAME }}-connector-v${{ steps.get-version.outputs.tagged_version }}
+
+
+            # Create PR using GitHub CLI
+            cd ../..
+            gh pr create --repo hasura/ndc-hub \
+              --base main \
+              --head $NEW_BRANCH \
+              --title "Update ${{ env.CONNECTOR_NAME }} connector to v${{ steps.get-version.outputs.tagged_version }}" \
+              --body "This PR updates the ${{ env.CONNECTOR_NAME }} connector metadata to version ${{ steps.get-version.outputs.tagged_version }}."
