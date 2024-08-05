@@ -1,6 +1,6 @@
 {
     "name": "ndc-turso",
-    "version": "0.0.20",
+    "version": "0.0.21",
     "main": "index.js",
     "author": "Tristen Harr",
     "scripts": {
