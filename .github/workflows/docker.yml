@@ -78,11 +78,14 @@ jobs:
       - name: Calculate SHA256 checksum
         id: calculate_checksum
         run: |
-              echo "SHA256=$(sha256sum ./connector-definition/dist/connector-definition.tgz | awk '{ print $1 }')" >> $GITHUB_ENV
-    
+          SHA256=$(sha256sum ./connector-definition/dist/connector-definition.tgz | awk '{ print $1 }')
+          echo "sha256=$SHA256" >> $GITHUB_OUTPUT
+
       - name: Get commit hash
         id: get_commit_hash
-        run: echo "COMMIT_HASH=$(git rev-parse HEAD)" >> $GITHUB_ENV
+        run: |           
+          COMMIT_HASH=$(git rev-parse HEAD)
+          echo "commit_hash=$COMMIT_HASH" >> $GITHUB_OUTPUT
 
   release-connector:
     name: Release connector
@@ -134,9 +137,9 @@ jobs:
             jq --arg version "${{ steps.get-version.outputs.tagged_version }}" \
               --arg version_tag "v${{ steps.get-version.outputs.tagged_version }}" \
               --arg uri "https://github.com/${{ github.repository }}/releases/download/v${{ steps.get-version.outputs.tagged_version }}/connector-definition.tgz" \
-              --arg checksum "${{ env.SHA256 }}" \
-              --arg commit_hash "${{ env.COMMIT_HASH }}" \
-              '.latest_version = $version_tag |
+              --arg checksum "$SHA256" \
+              --arg commit_hash "$COMMIT_HASH" \
+              '.overview.latest_version = $version_tag |
               .packages += [{
                 "version": $version,
                 "uri": $uri,
