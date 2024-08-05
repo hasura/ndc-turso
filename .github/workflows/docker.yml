@@ -130,4 +130,4 @@ jobs:
             git commit -m "Update ${{ env.CONNECTOR_NAME }} connector metadata to version ${{ steps.get-version.outputs.tagged_version }}"
   
             # Push changes
-            git push https://${{ secrets.GITHUB_TOKEN }}@github.com/hasura/ndc-hub.git HEAD:update-${{ env.CONNECTOR_NAME }}-connector-v${{ steps.get-version.outputs.tagged_version }}
+            git push https://${{ secrets.PAT_TOKEN }}@github.com/hasura/ndc-hub.git HEAD:update-${{ env.CONNECTOR_NAME }}-connector-v${{ steps.get-version.outputs.tagged_version }}
