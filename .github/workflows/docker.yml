@@ -158,10 +158,12 @@ jobs:
               }]' \
               metadata.json > tmp.json && mv tmp.json metadata.json
   
+            cp ../../../../README.md ./README.md
+
             # Commit changes
             git config user.name "GitHub Action"
             git config user.email "action@github.com"
-            git add metadata.json
+            git add metadata.json README.md
             git commit -m "Update ${{ env.CONNECTOR_NAME }} connector metadata to version ${{ steps.get-version.outputs.tagged_version }}"
   
             # Push changes
