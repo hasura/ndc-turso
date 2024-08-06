@@ -158,7 +158,7 @@ jobs:
               }]' \
               metadata.json > tmp.json && mv tmp.json metadata.json
   
-            cp ../../../../README.md ./README.md
+            cp ../../../README.md ./README.md
 
             # Commit changes
             git config user.name "GitHub Action"
