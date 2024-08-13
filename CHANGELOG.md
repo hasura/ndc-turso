@@ -5,6 +5,9 @@ This changelog documents changes between release tags.
 ## [Unreleased]
 Upcoming changes for the next versioned release.
 
+## [0.0.31]
+* Update workflow to automate NDC-hub PR
+
 ## [0.0.30]
 * Update SDK version
 
