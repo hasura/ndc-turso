@@ -5,6 +5,9 @@ This changelog documents changes between release tags.
 ## [Unreleased]
 Upcoming changes for the next versioned release.
 
+## [0.1.0]
+* Update Documentation for ndc-hub
+
 ## [0.0.32]
 * Fix automated workflow
 
